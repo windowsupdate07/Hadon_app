@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -32,14 +34,7 @@ class ApiClient {
           }
           handler.next(options);
         },
-        onError: (error, handler) {
-          final code = error.response?.statusCode;
-          if ((code == 401 || code == 403) &&
-              !error.requestOptions.path.startsWith('/auth/login')) {
-            onUnauthorized?.call();
-          }
-          handler.next(error);
-        },
+        onError: _onError,
       ),
     );
     if (kDebugMode) {
@@ -51,6 +46,78 @@ class ApiClient {
 
   final Dio _dio;
   final TokenStorage _tokenStorage;
+  PersistCookieJar? _cookieJar;
+
+  // Shared in-flight refresh so concurrent 401s trigger a single refresh.
+  Future<bool>? _refreshing;
+
+  /// Sets up the persistent cookie jar that carries the HttpOnly
+  /// `refreshToken` cookie. Call once before the first request.
+  Future<void> init() async {
+    final dir = await getApplicationSupportDirectory();
+    _cookieJar = PersistCookieJar(storage: FileStorage('${dir.path}/cookies'));
+    _dio.interceptors.insert(0, CookieManager(_cookieJar!));
+  }
+
+  /// Best-effort server logout (revokes the refresh token) + local cookie wipe.
+  Future<void> logout() async {
+    try {
+      await _dio.post('/auth/logout');
+    } catch (_) {
+      // Older backends have no /auth/logout; ignore.
+    }
+    await _cookieJar?.deleteAll();
+  }
+
+  /// Access tokens are short-lived (15 min) on the current backend. On 401
+  /// we call `/auth/refresh` (refresh token travels as a cookie), store the
+  /// new token and replay the request once. If refresh fails the session is
+  /// over and [onUnauthorized] fires.
+  Future<void> _onError(
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final req = error.requestOptions;
+    final code = error.response?.statusCode;
+    final isAuthCall =
+        req.path.startsWith('/auth/login') || req.path.startsWith('/auth/refresh');
+
+    if (code == 401 && !isAuthCall && req.extra['retried'] != true) {
+      if (await _refreshToken()) {
+        try {
+          req.extra['retried'] = true;
+          req.headers['x-access-token'] = _tokenStorage.token;
+          final res = await _dio.fetch<dynamic>(req);
+          return handler.resolve(res);
+        } on DioException catch (e) {
+          return handler.next(e);
+        }
+      }
+    }
+    if ((code == 401 || code == 403) && !isAuthCall) {
+      onUnauthorized?.call();
+    }
+    handler.next(error);
+  }
+
+  Future<bool> _refreshToken() {
+    return _refreshing ??= () async {
+      try {
+        final res = await _dio.post<dynamic>('/auth/refresh');
+        final data = res.data;
+        final token = data is Map ? data['accessToken']?.toString() : null;
+        if (token == null || token.isEmpty) {
+          return false;
+        }
+        await _tokenStorage.saveToken(token);
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        _refreshing = null;
+      }
+    }();
+  }
 
   /// Called when the server rejects the token (expired / revoked).
   VoidCallback? onUnauthorized;
@@ -174,6 +241,7 @@ class ApiClient {
   }
 
   String? _message(Map data) {
-    return data['message']?.toString();
+    final msg = data['message'];
+    return msg?.toString();
   }
 }

@@ -10,11 +10,12 @@ import 'core/storage/token_storage.dart';
 import 'features/auth/auth_provider.dart';
 import 'router/app_router.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final storage = TokenStorage();
   final api = ApiClient(storage);
+  await api.init();
   final auth = AuthProvider(api, storage)..restore();
 
   runApp(

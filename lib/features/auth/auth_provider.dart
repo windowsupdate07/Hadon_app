@@ -90,6 +90,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await _api.logout();
     await _storage.clear();
     _employee = null;
     _set(AuthStatus.unauthenticated);

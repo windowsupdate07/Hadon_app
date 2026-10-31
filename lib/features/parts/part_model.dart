@@ -43,14 +43,14 @@ class Part {
   String get displayName => nameTh ?? nameEn ?? partNumber ?? '#$id';
 
   Map<String, dynamic> toJson() => {
-        'PartNumber': partNumber,
-        'PartName_th': nameTh,
-        'PartName_en': nameEn,
-        'PartAmount': amount,
-        'PricePerUnit': pricePerUnit,
-        'ServiceFee': serviceFee,
-        'UnitID': unitId,
-      };
+    'PartNumber': partNumber,
+    'PartName_th': nameTh,
+    'PartName_en': nameEn,
+    'PartAmount': amount,
+    'PricePerUnit': pricePerUnit,
+    'ServiceFee': serviceFee,
+    'UnitID': unitId,
+  };
 
   bool matches(String q) {
     final s = q.toLowerCase();

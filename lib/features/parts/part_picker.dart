@@ -51,7 +51,8 @@ class _PartPickerSheetState extends State<_PartPickerSheet> {
   Future<void> _choose(Part part) async {
     final qty = await showDialog<double>(
       context: context,
-      builder: (_) => _QuantityDialog(part: part, checkStock: widget.checkStock),
+      builder: (_) =>
+          _QuantityDialog(part: part, checkStock: widget.checkStock),
     );
     if (qty != null && mounted) {
       Navigator.of(context).pop(PickedPart(part, qty));
@@ -156,8 +157,9 @@ class _QuantityDialogState extends State<_QuantityDialog> {
             TextFormField(
               controller: _qty,
               autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(labelText: 'จำนวน'),
               onChanged: (_) => setState(() {}),
               validator: (v) {

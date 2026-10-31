@@ -1,5 +1,6 @@
-// Lenient JSON readers. MySQL DECIMAL/DOUBLE columns may arrive as strings,
-// and booleans may arrive as 0/1, so models parse through these helpers.
+/// Lenient JSON readers. MySQL DECIMAL/DOUBLE columns may arrive as strings,
+/// and booleans may arrive as 0/1, so models parse through these helpers.
+library;
 
 int? asInt(dynamic v) {
   if (v == null) {

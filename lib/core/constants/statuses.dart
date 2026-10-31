@@ -8,7 +8,7 @@ class StatusInfo {
   final Color color;
 }
 
-/// Values mirror `ntp-api/seeders/data/workstatus.json`.
+/// Values mirror `honda-ntp-antigravity/backend/seeders/data/workstatus.json`.
 class WorkStatus {
   WorkStatus._();
 
@@ -20,11 +20,12 @@ class WorkStatus {
   static const repaired = 6;
   static const success = 7;
   static const purchasing = 8;
+  static const allocateMore = 9;
   static const cancel = 99;
 
   static const all = [
     checking, checked, invoice, allocating, repairing, //
-    repaired, success, purchasing, cancel,
+    allocateMore, repaired, success, purchasing, cancel,
   ];
 
   static StatusInfo info(int? id) {
@@ -45,33 +46,38 @@ class WorkStatus {
         return const StatusInfo('เสร็จสิ้น', Colors.green);
       case purchasing:
         return const StatusInfo('อยู่ระหว่างการจัดซื้ออุปกรณ์', Colors.brown);
+      case allocateMore:
+        return const StatusInfo(
+          'อยู่ระหว่างซ่อม (จัดสรรอุปกรณ์เพิ่มเติม)',
+          Colors.deepOrange,
+        );
       case cancel:
-        return const StatusInfo('ยกเลิก', Colors.red);
+        return const StatusInfo('ยกเลิกการซ่อม', Colors.red);
       default:
         return const StatusInfo('-', Colors.grey);
     }
   }
 }
 
-/// Values mirror `ntp-api/seeders/data/invoiceStatus.json`.
+/// Values mirror `honda-ntp-antigravity/backend/seeders/data/invoiceStatus.json`.
 class InvoiceStatus {
   InvoiceStatus._();
 
   static const pendingConfirm = 1;
   static const pendingPayment = 2;
   static const paid = 3;
-  static const cancelled = 4;
+  static const cancelled = 99;
 
   static StatusInfo info(int? id) {
     switch (id) {
       case pendingConfirm:
         return const StatusInfo('รอยืนยันใบแจ้งหนี้', Colors.orange);
       case pendingPayment:
-        return const StatusInfo('รอการชำระเงิน', Colors.blue);
+        return const StatusInfo('รอชำระเงิน', Colors.blue);
       case paid:
         return const StatusInfo('ชำระเงินแล้ว', Colors.green);
       case cancelled:
-      case 99: // newer backend uses 99 for cancelled
+      case 4: // older ntp-api used 4
         return const StatusInfo('ยกเลิกใบแจ้งหนี้', Colors.red);
       default:
         return const StatusInfo('-', Colors.grey);

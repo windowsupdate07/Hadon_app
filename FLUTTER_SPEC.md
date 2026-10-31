@@ -4,13 +4,31 @@
 
 > **ข้อควรรู้ก่อนเริ่ม:** ข้อมูล API ในเอกสารนี้อ้างอิงจาก **โค้ดจริงใน `backend/routes/*`** ไม่ใช่จาก `README.md` ของ repo เพราะ README มีหลายจุดที่ไม่ตรงกับโค้ด (ดูหัวข้อ [README vs โค้ดจริง](#9-readme-vs-โค้ดจริง))
 >
-> **Backend ที่ใช้:** แอป Flutter เชื่อมกับ **`honda-ntp-antigravity/backend`** (เวอร์ชันล่าสุด) เท่านั้น
-> **อย่าใช้ `~/Dev/Node/ntp-api`** (repo `nutchapardev/ntp-api`) — เป็น backend เวอร์ชันเก่า:
->
-> - local working copy (ก.ย. 2025, ตามหลัง remote 22 commits): ~40 endpoint ไม่มี quotation, invoice flow, receipt, appointment, follow-up, dashboard, work-summary; token อายุ 24 ชม. ไม่มี `/auth/refresh`
-> - `origin/main` (มี.ค. 2026): เพิ่ม quotation/PDF/invoice แล้ว แต่ยังไม่มี refresh token, receipt, appointment
->
-> ถ้ารันผิดตัว endpoint ในข้อ 7 หลายตัวจะได้ `404 api not found.` และ interceptor refresh จะใช้ไม่ได้
+> **Backend ที่แอปใช้จริง (อัปเดต 2026-10-31):** แอปใน `lib/` สร้างตาม **`~/Dev/Node/ntp-api`** (repo `nutchapardev/ntp-api`, commit `d5c2480`, มี.ค. 2026) — ดู [ข้อ 0](#0-ความต่างของ-ntp-api-ที่แอปใช้)
+> ส่วนข้อ 1–15 ด้านล่างเขียนจาก `honda-ntp-antigravity/backend` (เวอร์ชันใหม่กว่า) ใช้เป็นแผนต่อยอดเมื่อย้าย backend
+
+---
+
+## 0. ความต่างของ `ntp-api` ที่แอปใช้
+
+| เรื่อง | ntp-api (ที่แอปใช้) | honda-ntp-antigravity/backend |
+| --- | --- | --- |
+| Token | JWT 24 ชม., ไม่มี `/auth/refresh` → 401/403 = logout | 15 นาที + refresh cookie |
+| Token ทาง query (`?token=`) | ไม่รองรับ → PDF/รูปต้องส่ง header (`openServerPdf`, `Image.network(headers:)`) | รองรับ |
+| InvoiceStatus ยกเลิก | `4` | `99` (แอปรองรับทั้งคู่) |
+| WorkStatus | ไม่มี `9` | มี `9` |
+| รูปรถ | `/imageCar/repairID/:id`, `/images/car/:repairId/:filename` | ผูกกับ QuotationID |
+| ไม่มีใน ntp-api | receipts, appointments, follow-ups, dashboard, work-summary, manual-invoices, sessions | มี |
+
+เมนูในแอปจึงมีเฉพาะ: งานซ่อม, ใบเสนอราคา, ใบแจ้งหนี้, ลูกค้า, รถยนต์, คู่ค้า, สินค้าคงคลัง, พรีเซ็ต, พนักงาน, บัญชีผู้ใช้
+
+**รันแอป:**
+
+```bash
+# ntp-api ต้องรันที่ port 8080 (node server.js, ต้องมี .env: DB_*, JWT_SECRET, JWT_ENABLED=true)
+flutter run                                   # Android emulator → 10.0.2.2:8080, iOS sim → 127.0.0.1:8080
+flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/ntp-api   # เครื่องจริง
+```
 
 ---
 
