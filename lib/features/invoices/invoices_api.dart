@@ -10,7 +10,8 @@ class InvoicesApi {
 
   final ApiClient _api;
 
-  Future<List<Invoice>> findAll() => _api.getList('/invoices', Invoice.fromJson);
+  Future<List<Invoice>> findAll() =>
+      _api.getList('/invoices', Invoice.fromJson);
 
   Future<Invoice> findOne(String id) =>
       _api.getOne('/invoices/${Uri.encodeComponent(id)}', Invoice.fromJson);

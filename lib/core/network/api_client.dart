@@ -17,14 +17,14 @@ import 'api_exception.dart';
 /// into [ApiException]s.
 class ApiClient {
   ApiClient(this._tokenStorage, {String? baseUrl})
-      : _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl ?? Env.apiBaseUrl,
-            connectTimeout: const Duration(seconds: 20),
-            receiveTimeout: const Duration(seconds: 60),
-            headers: {'Content-Type': 'application/json'},
-          ),
-        ) {
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl ?? Env.apiBaseUrl,
+          connectTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 60),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -80,7 +80,8 @@ class ApiClient {
     final req = error.requestOptions;
     final code = error.response?.statusCode;
     final isAuthCall =
-        req.path.startsWith('/auth/login') || req.path.startsWith('/auth/refresh');
+        req.path.startsWith('/auth/login') ||
+        req.path.startsWith('/auth/refresh');
 
     if (code == 401 && !isAuthCall && req.extra['retried'] != true) {
       if (await _refreshToken()) {
@@ -165,12 +166,12 @@ class ApiClient {
   }
 
   Future<dynamic> postMultipart(String path, FormData form) => _send(
-        () => _dio.post(
-          path,
-          data: form,
-          options: Options(contentType: 'multipart/form-data'),
-        ),
-      );
+    () => _dio.post(
+      path,
+      data: form,
+      options: Options(contentType: 'multipart/form-data'),
+    ),
+  );
 
   /// Downloads a file (e.g. a server generated PDF) with auth headers and
   /// returns the local file.

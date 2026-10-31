@@ -73,12 +73,16 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
     if (cb != null) {
       cb();
     } else {
-      setState(() => _future = _load());
+      setState(() {
+        _future = _load();
+      });
     }
   }
 
   void _retry() {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
   }
 
   Future<void> _addItem() async {

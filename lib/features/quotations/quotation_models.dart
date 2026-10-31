@@ -31,7 +31,9 @@ String customerName(Map<String, dynamic>? customer) {
     return '';
   }
   final title = asMap(customer['customerTitle']);
-  final titleId = asInt(title?['CustomerTitleID'] ?? customer['CustomerTitleID']);
+  final titleId = asInt(
+    title?['CustomerTitleID'] ?? customer['CustomerTitleID'],
+  );
   final titleText = titleId == 99 ? null : asString(title?['CustomerTitle']);
   return [
     titleText,
@@ -47,16 +49,18 @@ String addressText(Map<String, dynamic>? address) {
     return '';
   }
   final sub = asMap(address['subDistrict']);
-  final line = [asString(address['Line1']), asString(address['Line2'])]
-      .whereType<String>()
-      .join(' ');
+  final line = [
+    asString(address['Line1']),
+    asString(address['Line2']),
+  ].whereType<String>().join(' ');
   return [
     line,
     asString(sub?['name_th']),
     asString(asMap(address['district'])?['name_th']),
-    [asString(asMap(address['province'])?['name_th']), asString(sub?['Zipcode'])]
-        .whereType<String>()
-        .join(' '),
+    [
+      asString(asMap(address['province'])?['name_th']),
+      asString(sub?['Zipcode']),
+    ].whereType<String>().join(' '),
   ].where((s) => s != null && s.isNotEmpty).join(', ');
 }
 
@@ -92,10 +96,14 @@ class QuotationRepair {
       customerId: asInt(j['CustomerID']),
       workStatusId: asInt(j['WorkStatusID']),
       car: asMap(j['car']),
-      invoiceIds: invoices.map((i) => asString(i['InvoiceID'])).whereType<String>().toList(),
+      invoiceIds: invoices
+          .map((i) => asString(i['InvoiceID']))
+          .whereType<String>()
+          .toList(),
       receiptStatuses: [
         for (final inv in invoices)
-          for (final r in asMapList(inv['receipts'])) asInt(r['RecieptStatusID']),
+          for (final r in asMapList(inv['receipts']))
+            asInt(r['RecieptStatusID']),
       ].whereType<int>().toList(),
     );
   }
@@ -184,9 +192,9 @@ class Quotation {
       customer: asMap(j['customer']),
       address: asMap(j['address']),
       repairs: asMapList(j['repairs']).map(QuotationRepair.fromJson).toList(),
-      pledgeAmounts: asMapList(j['cashPledges'])
-          .map((p) => asDouble(p['PledgeAmount']))
-          .toList(),
+      pledgeAmounts: asMapList(
+        j['cashPledges'],
+      ).map((p) => asDouble(p['PledgeAmount'])).toList(),
       stockLines: [
         for (final d in asMapList(j['quotationDetails']))
           for (final p in asMapList(d['quotationParts']))
@@ -247,9 +255,8 @@ class Quotation {
   bool get isCancelledRepair => repairs.any((r) => r.isCancelled);
 
   /// Web `hasActiveReceipt`: a repair invoice has a PAID receipt.
-  bool get hasPaidRepairReceipt => repairs.any(
-        (r) => r.receiptStatuses.contains(ReceiptStatus.paid),
-      );
+  bool get hasPaidRepairReceipt =>
+      repairs.any((r) => r.receiptStatuses.contains(ReceiptStatus.paid));
 
   bool get hasPledge => pledgeAmounts.any((a) => a > 0);
 
@@ -261,14 +268,17 @@ class Quotation {
     if (p.isNotEmpty) {
       return p;
     }
-    return repairs.map((r) => r.plate).firstWhere((s) => s.isNotEmpty, orElse: () => '');
+    return repairs
+        .map((r) => r.plate)
+        .firstWhere((s) => s.isNotEmpty, orElse: () => '');
   }
 
   String get customerDisplayName =>
       customerName(customer ?? asMap(car?['customer']));
 
-  String? get customerTel =>
-      asString(customer?['CustomerTel'] ?? asMap(car?['customer'])?['CustomerTel']);
+  String? get customerTel => asString(
+    customer?['CustomerTel'] ?? asMap(car?['customer'])?['CustomerTel'],
+  );
 
   String get gasText => gasInstallation == 1 ? 'ติดแก๊ส' : 'ไม่ติดแก๊ส';
 
@@ -349,10 +359,10 @@ class QuotationPart {
   bool get isShort => part != null && quantity > part!.amount;
 
   double get total => quotationLineTotal(
-        quantity: quantity,
-        pricePerUnit: pricePerUnit,
-        serviceFee: serviceFee,
-      );
+    quantity: quantity,
+    pricePerUnit: pricePerUnit,
+    serviceFee: serviceFee,
+  );
 }
 
 /// `QuotationDetail` row from `GET /quotation-detail/by-quotation-id/:id`.
@@ -377,7 +387,9 @@ class QuotationDetail {
       presetId: asInt(j['PresetID']),
       presetName: asString(preset?['Preset']),
       copiedToQuotationId: asString(j['CopiedToQuotationID']),
-      parts: asMapList(j['quotationParts']).map(QuotationPart.fromJson).toList(),
+      parts: asMapList(
+        j['quotationParts'],
+      ).map(QuotationPart.fromJson).toList(),
     );
   }
 
@@ -403,8 +415,9 @@ DocumentTotals quotationTotals(
   List<QuotationDetail> details, {
   Iterable<double> cashPledges = const [],
 }) {
-  final itemsSum =
-      details.expand((d) => d.parts).fold<double>(0, (a, p) => a + p.total);
+  final itemsSum = details
+      .expand((d) => d.parts)
+      .fold<double>(0, (a, p) => a + p.total);
   return DocumentTotals.compute(
     itemsSum: itemsSum,
     isVat: q.isVat,
@@ -415,13 +428,17 @@ DocumentTotals quotationTotals(
 
 /// `CashPledge` row (มัดจำ).
 class CashPledge {
-  const CashPledge({required this.id, required this.title, required this.amount});
+  const CashPledge({
+    required this.id,
+    required this.title,
+    required this.amount,
+  });
 
   factory CashPledge.fromJson(Map<String, dynamic> j) => CashPledge(
-        id: asInt(j['CashPledgeID']) ?? 0,
-        title: asString(j['PledgeTitle']) ?? 'เงินมัดจำ',
-        amount: asDouble(j['PledgeAmount']),
-      );
+    id: asInt(j['CashPledgeID']) ?? 0,
+    title: asString(j['PledgeTitle']) ?? 'เงินมัดจำ',
+    amount: asDouble(j['PledgeAmount']),
+  );
 
   final int id;
   final String title;
@@ -441,14 +458,14 @@ class QuotationLog {
   });
 
   factory QuotationLog.fromJson(Map<String, dynamic> j) => QuotationLog(
-        id: asInt(j['LogID']) ?? 0,
-        action: asString(j['Action']),
-        module: asString(j['Module']),
-        details: asString(j['Details']),
-        repairId: asInt(j['RepairID']),
-        employeeName: _employeeName(asMap(j['employee'])),
-        createdAt: asDate(j['createdAt']),
-      );
+    id: asInt(j['LogID']) ?? 0,
+    action: asString(j['Action']),
+    module: asString(j['Module']),
+    details: asString(j['Details']),
+    repairId: asInt(j['RepairID']),
+    employeeName: _employeeName(asMap(j['employee'])),
+    createdAt: asDate(j['createdAt']),
+  );
 
   final int id;
 
@@ -476,12 +493,12 @@ class QuotationReceipt {
   });
 
   factory QuotationReceipt.fromJson(Map<String, dynamic> j) => QuotationReceipt(
-        billingId: asString(j['BillingID']) ?? '',
-        statusId: asInt(j['RecieptStatusID']),
-        isDeposit: asInt(j['IsDeposit']) == 1,
-        invoiceId: asString(j['InvoiceID'] ?? asMap(j['invoice'])?['InvoiceID']),
-        amount: asDouble(j['Amount']),
-      );
+    billingId: asString(j['BillingID']) ?? '',
+    statusId: asInt(j['RecieptStatusID']),
+    isDeposit: asInt(j['IsDeposit']) == 1,
+    invoiceId: asString(j['InvoiceID'] ?? asMap(j['invoice'])?['InvoiceID']),
+    amount: asDouble(j['Amount']),
+  );
 
   final String billingId;
   final int? statusId;
@@ -540,7 +557,11 @@ class PresetPart {
 
 /// Preset with its default parts.
 class PresetOption {
-  const PresetOption({required this.id, required this.name, this.parts = const []});
+  const PresetOption({
+    required this.id,
+    required this.name,
+    this.parts = const [],
+  });
 
   factory PresetOption.fromJson(Map<String, dynamic> j) {
     final parts = <PresetPart>[];
@@ -549,7 +570,12 @@ class PresetOption {
       if (part == null) {
         continue;
       }
-      parts.add(PresetPart(part: Part.fromJson(part), quantity: asInt(d['NumOfUse']) ?? 1));
+      parts.add(
+        PresetPart(
+          part: Part.fromJson(part),
+          quantity: asInt(d['NumOfUse']) ?? 1,
+        ),
+      );
     }
     return PresetOption(
       id: asInt(j['PresetID']) ?? 0,
@@ -606,12 +632,12 @@ class CarOption {
   });
 
   factory CarOption.fromJson(Map<String, dynamic> j) => CarOption(
-        id: asInt(j['CarID']) ?? 0,
-        customerId: asInt(j['CustomerID']),
-        brandId: asInt(j['BrandID']),
-        modelId: asInt(j['ModelID']),
-        raw: j,
-      );
+    id: asInt(j['CarID']) ?? 0,
+    customerId: asInt(j['CustomerID']),
+    brandId: asInt(j['BrandID']),
+    modelId: asInt(j['ModelID']),
+    raw: j,
+  );
 
   final int id;
   final int? customerId;
@@ -628,9 +654,9 @@ class CarOption {
   String? get color => asString(raw['Color']);
 
   String get brandModel => [
-        asString(asMap(raw['brand'])?['Brand']),
-        asString(asMap(raw['model'])?['Model']),
-      ].whereType<String>().join(' ');
+    asString(asMap(raw['brand'])?['Brand']),
+    asString(asMap(raw['model'])?['Model']),
+  ].whereType<String>().join(' ');
 
   bool matches(String q) {
     final s = q.toLowerCase();
@@ -657,16 +683,16 @@ class DraftPart {
   double serviceFee;
 
   double get total => quotationLineTotal(
-        quantity: quantity,
-        pricePerUnit: pricePerUnit,
-        serviceFee: serviceFee,
-      );
+    quantity: quantity,
+    pricePerUnit: pricePerUnit,
+    serviceFee: serviceFee,
+  );
 
   /// Body item for `POST /quotation-detail/create-with-parts`.
   Map<String, dynamic> toJson() => {
-        'PartID': part.id,
-        'NumOfUse': quantity,
-        'PricePerUnit': pricePerUnit,
-        'ServiceFee': serviceFee,
-      };
+    'PartID': part.id,
+    'NumOfUse': quantity,
+    'PricePerUnit': pricePerUnit,
+    'ServiceFee': serviceFee,
+  };
 }

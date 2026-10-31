@@ -35,12 +35,15 @@ class _RepairHistorySheet extends StatefulWidget {
 
 class _RepairHistorySheetState extends State<_RepairHistorySheet> {
   late final CarsApi _api = CarsApi(context.read<ApiClient>());
-  late Future<List<CarRepairRecord>> _future =
-      _api.repairHistory(widget.car.id);
+  late Future<List<CarRepairRecord>> _future = _api.repairHistory(
+    widget.car.id,
+  );
 
   Future<void> _refresh() async {
     final future = _api.repairHistory(widget.car.id);
-    setState(() => _future = future);
+    setState(() {
+      _future = future;
+    });
     try {
       await future;
     } catch (_) {
@@ -70,8 +73,9 @@ class _RepairHistorySheetState extends State<_RepairHistorySheet> {
                     children: [
                       Text(
                         'ประวัติการซ่อม',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         widget.car.plateWithProvince,
@@ -158,9 +162,7 @@ class _RepairTile extends StatelessWidget {
             children: [
               const Icon(Icons.speed, size: 14, color: Colors.grey),
               const SizedBox(width: 4),
-              Text(
-                r.mileage == null ? '-' : '${formatNumber(r.mileage)} กม.',
-              ),
+              Text(r.mileage == null ? '-' : '${formatNumber(r.mileage)} กม.'),
               const Spacer(),
               Text(
                 'ชำระแล้ว ฿${formatMoney(r.paidAmount)}',

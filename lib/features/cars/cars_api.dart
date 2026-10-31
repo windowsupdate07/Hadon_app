@@ -18,8 +18,10 @@ class CarsApi {
   /// model, province, repair ids). Sorted newest first here; the server does
   /// not order.
   Future<List<Car>> findByCustomer(int customerId) async {
-    final list =
-        await _api.getList('/cars/by-customer/$customerId', Car.fromJson);
+    final list = await _api.getList(
+      '/cars/by-customer/$customerId',
+      Car.fromJson,
+    );
     list.sort((a, b) => b.id.compareTo(a.id));
     return list;
   }
@@ -78,8 +80,10 @@ class CarsApi {
   /// `GET /repair/by-car/:id`, newest first, cancelled jobs hidden (as on
   /// the web).
   Future<List<CarRepairRecord>> repairHistory(int carId) async {
-    final list =
-        await _api.getList('/repair/by-car/$carId', CarRepairRecord.fromJson);
+    final list = await _api.getList(
+      '/repair/by-car/$carId',
+      CarRepairRecord.fromJson,
+    );
     return list.where((r) => r.workStatusId != WorkStatus.cancel).toList();
   }
 }

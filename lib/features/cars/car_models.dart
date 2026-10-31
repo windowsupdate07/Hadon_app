@@ -29,11 +29,11 @@ class Car {
 
   factory Car.fromJson(Map<String, dynamic> j) {
     final customer = asMap(j['customer']);
-    final ids = asMapList(j['repairs'])
-        .map((r) => asInt(r['RepairID']))
-        .whereType<int>()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
+    final ids =
+        asMapList(
+            j['repairs'],
+          ).map((r) => asInt(r['RepairID'])).whereType<int>().toList()
+          ..sort((a, b) => b.compareTo(a));
     return Car(
       id: asInt(j['CarID']) ?? 0,
       customerId: asInt(j['CustomerID']),
@@ -106,16 +106,16 @@ class Car {
 
   /// Body for `POST /cars` and `PUT /cars/:id`.
   Map<String, dynamic> toJson() => {
-        'CustomerID': customerId,
-        'BrandID': brandId,
-        'ModelID': modelId,
-        'CarTitle': carTitle,
-        'CarNumber': carNumber,
-        'ProvinceID': provinceId,
-        'VIN': vin,
-        'EC': ec,
-        'Color': color,
-      };
+    'CustomerID': customerId,
+    'BrandID': brandId,
+    'ModelID': modelId,
+    'CarTitle': carTitle,
+    'CarNumber': carNumber,
+    'ProvinceID': provinceId,
+    'VIN': vin,
+    'EC': ec,
+    'Color': color,
+  };
 
   /// Search like the web table: id, plate, plate province, brand / model,
   /// colour, owner and VIN / engine no.

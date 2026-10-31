@@ -41,9 +41,10 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
-      await context
-          .read<AuthProvider>()
-          .login(_username.text.trim(), _password.text);
+      await context.read<AuthProvider>().login(
+        _username.text.trim(),
+        _password.text,
+      );
       // Router redirect takes over on success.
     } catch (e) {
       if (mounted) {
@@ -77,14 +78,16 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         'Honda NTP',
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         'ระบบบริหารจัดการอู่ซ่อมรถ',
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: Colors.grey),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
                       ),
                       const SizedBox(height: 32),
                       TextFormField(
@@ -152,8 +155,9 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         Env.apiBaseUrl,
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: Colors.grey),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),

@@ -36,20 +36,20 @@ class _TimelineSheetState extends State<_TimelineSheet> {
   late Future<List<QuotationLog>> _future = widget.api.logs(widget.quotationId);
 
   static Color _color(String? action) => switch (action) {
-        'สร้าง' => Colors.green,
-        'แก้ไข' => Colors.orange,
-        'ลบ' || 'ยกเลิก' => Colors.red,
-        'คัดลอก' => Colors.purple,
-        _ => Colors.blue,
-      };
+    'สร้าง' => Colors.green,
+    'แก้ไข' => Colors.orange,
+    'ลบ' || 'ยกเลิก' => Colors.red,
+    'คัดลอก' => Colors.purple,
+    _ => Colors.blue,
+  };
 
   static IconData _icon(String? action) => switch (action) {
-        'สร้าง' => Icons.add_circle_outline,
-        'แก้ไข' => Icons.edit_outlined,
-        'ลบ' || 'ยกเลิก' => Icons.delete_outline,
-        'คัดลอก' => Icons.copy_all_outlined,
-        _ => Icons.info_outline,
-      };
+    'สร้าง' => Icons.add_circle_outline,
+    'แก้ไข' => Icons.edit_outlined,
+    'ลบ' || 'ยกเลิก' => Icons.delete_outline,
+    'คัดลอก' => Icons.copy_all_outlined,
+    _ => Icons.info_outline,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -97,13 +97,17 @@ class _TimelineSheetState extends State<_TimelineSheet> {
                         child: Icon(_icon(log.action), color: color, size: 20),
                       ),
                       title: Text(
-                        [log.action, log.module].whereType<String>().join(' · '),
+                        [
+                          log.action,
+                          log.module,
+                        ].whereType<String>().join(' · '),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if ((log.details ?? '').isNotEmpty) Text(log.details!),
+                          if ((log.details ?? '').isNotEmpty)
+                            Text(log.details!),
                           Text(
                             '${formatThaiDateTime(log.createdAt)} · '
                             '${log.employeeName ?? 'ระบบอัตโนมัติ'}'
@@ -178,7 +182,10 @@ class _CopyDialogState extends State<_CopyDialog> {
             if (widget.details.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(12),
-                child: Text('ไม่มีรายการให้คัดลอก', style: TextStyle(color: Colors.grey)),
+                child: Text(
+                  'ไม่มีรายการให้คัดลอก',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             for (final d in widget.details)
               CheckboxListTile(
@@ -221,7 +228,9 @@ class _CopyDialogState extends State<_CopyDialog> {
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     value: false,
-                    title: Text('กรอกข้อมูลลูกค้าและรถยนต์ใหม่ (รูปภาพอัปโหลดภายหลัง)'),
+                    title: Text(
+                      'กรอกข้อมูลลูกค้าและรถยนต์ใหม่ (รูปภาพอัปโหลดภายหลัง)',
+                    ),
                   ),
                 ],
               ),
@@ -238,11 +247,11 @@ class _CopyDialogState extends State<_CopyDialog> {
           onPressed: _selected.isEmpty
               ? null
               : () => Navigator.of(context).pop(
-                    CopyRequest(
-                      detailIds: _selected.toList(),
-                      useExisting: _useExisting,
-                    ),
+                  CopyRequest(
+                    detailIds: _selected.toList(),
+                    useExisting: _useExisting,
                   ),
+                ),
           child: Text('คัดลอก (${_selected.length})'),
         ),
       ],
@@ -366,10 +375,10 @@ class _ReceiveTypeDialogState extends State<_ReceiveTypeDialog> {
           onPressed: _type == 2 && appointment == null
               ? null
               : () => Navigator.of(context).pop(
-                    _type == 1
-                        ? const ReceiveChoice.wait()
-                        : ReceiveChoice.appointment(appointment!),
-                  ),
+                  _type == 1
+                      ? const ReceiveChoice.wait()
+                      : ReceiveChoice.appointment(appointment!),
+                ),
           child: const Text('ตกลง'),
         ),
       ],
@@ -434,7 +443,8 @@ Future<void> openQuotationPdf(
     return;
   }
   final enc = Uri.encodeComponent(quotationId);
-  final query = 'docTitle=${Uri.encodeQueryComponent(title)}'
+  final query =
+      'docTitle=${Uri.encodeQueryComponent(title)}'
       '${grouped ? '&showTotal=$showTotal' : ''}';
   await openServerPdf(
     context,
@@ -459,7 +469,9 @@ Future<void> openBillingPdf(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('ตั้งค่าการแสดงผล'),
-        content: const Text('ต้องการให้แสดงที่อยู่และเลขประจำตัวผู้เสียภาษีหรือไม่?'),
+        content: const Text(
+          'ต้องการให้แสดงที่อยู่และเลขประจำตัวผู้เสียภาษีหรือไม่?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),

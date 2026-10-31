@@ -80,10 +80,7 @@ class _LookupDropdownState extends State<LookupDropdown> {
     }
   }
 
-  Future<void> _load(
-    Future<List<Option>> Function() load,
-    Object key,
-  ) async {
+  Future<void> _load(Future<List<Option>> Function() load, Object key) async {
     try {
       final options = await load();
       // Ignore stale responses after the parent selection changed.
@@ -109,10 +106,8 @@ class _LookupDropdownState extends State<LookupDropdown> {
   Widget build(BuildContext context) {
     final hasValue = _options.any((o) => o.id == widget.value);
     final selected = hasValue ? widget.value : null;
-    final enabled = widget.enabled &&
-        widget.load != null &&
-        !_loading &&
-        _error == null;
+    final enabled =
+        widget.enabled && widget.load != null && !_loading && _error == null;
 
     Widget? suffix;
     if (_loading) {
@@ -134,7 +129,9 @@ class _LookupDropdownState extends State<LookupDropdown> {
 
     final hint = _loading
         ? 'กำลังโหลด...'
-        : (widget.load == null ? (widget.disabledHint ?? '-') : 'เลือก${widget.label}');
+        : (widget.load == null
+              ? (widget.disabledHint ?? '-')
+              : 'เลือก${widget.label}');
 
     return DropdownButtonFormField<int>(
       // Rebuild the field state when the option set or the selection changes,

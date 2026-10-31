@@ -57,7 +57,9 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
   }
 
   void _reload() {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
   }
 
   Future<void> _add() async {

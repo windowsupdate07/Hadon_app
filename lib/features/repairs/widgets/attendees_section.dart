@@ -39,7 +39,9 @@ class _AttendeesSectionState extends State<AttendeesSection> {
   }
 
   void _reload() {
-    setState(() => _future = widget.api.attendees(widget.repairId));
+    setState(() {
+      _future = widget.api.attendees(widget.repairId);
+    });
   }
 
   /// Lets the page refresh the timeline; falls back to a local reload.
@@ -232,7 +234,9 @@ class _EmployeePickerDialogState extends State<_EmployeePickerDialog> {
             if (snap.hasError) {
               return ErrorView(
                 error: snap.error!,
-                onRetry: () => setState(() => _future = _load()),
+                onRetry: () => setState(() {
+                  _future = _load();
+                }),
               );
             }
             final q = _query.toLowerCase();

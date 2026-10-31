@@ -52,11 +52,11 @@ class VehicleDetails {
   final int tireType;
 
   Map<String, dynamic> toJson() => {
-        'Mileage': mileage,
-        'GasInstalation': gasInstallation,
-        'TireType': tireType,
-        'TaxDate': taxDate == null ? null : formatApiDate(taxDate!),
-      };
+    'Mileage': mileage,
+    'GasInstalation': gasInstallation,
+    'TireType': tireType,
+    'TaxDate': taxDate == null ? null : formatApiDate(taxDate!),
+  };
 }
 
 /// Endpoints used by the quotation screens
@@ -109,7 +109,8 @@ class QuotationsApi {
   Future<void> update(String id, Map<String, dynamic> body) =>
       _api.put('/quotation/${Uri.encodeComponent(id)}', data: body);
 
-  Future<void> updateVehicle(String id, VehicleDetails v) => update(id, v.toJson());
+  Future<void> updateVehicle(String id, VehicleDetails v) =>
+      update(id, v.toJson());
 
   /// Web `switchVat`: `{isVat, VatType}`.
   Future<void> setVat(String id, {required bool isVat, required int vatType}) =>
@@ -153,9 +154,9 @@ class QuotationsApi {
   // ---- Items ----
 
   Future<List<QuotationDetail>> details(String quotationId) => _api.getList(
-        '/quotation-detail/by-quotation-id/${Uri.encodeComponent(quotationId)}',
-        QuotationDetail.fromJson,
-      );
+    '/quotation-detail/by-quotation-id/${Uri.encodeComponent(quotationId)}',
+    QuotationDetail.fromJson,
+  );
 
   /// `POST /quotation-detail/create-with-parts`. The server requires
   /// QuotationID, RepairCategoryID and PresetID; `quotationParts` items are
@@ -202,9 +203,9 @@ class QuotationsApi {
   // ---- Cash pledge ----
 
   Future<List<CashPledge>> cashPledges(String quotationId) => _api.getList(
-        '/cash-pledge/by-quotation-id/${Uri.encodeComponent(quotationId)}',
-        CashPledge.fromJson,
-      );
+    '/cash-pledge/by-quotation-id/${Uri.encodeComponent(quotationId)}',
+    CashPledge.fromJson,
+  );
 
   /// `POST /cash-pledge` {QuotationID, PledgeTitle, PledgeAmount}. The
   /// server also creates a deposit invoice (IsDeposit 1, status 2 รอชำระเงิน,
@@ -248,9 +249,9 @@ class QuotationsApi {
   // ---- Car photos ----
 
   Future<List<QuotationImage>> images(String quotationId) => _api.getList(
-        '/imageCar/quotationID/${Uri.encodeComponent(quotationId)}',
-        QuotationImage.fromJson,
-      );
+    '/imageCar/quotationID/${Uri.encodeComponent(quotationId)}',
+    QuotationImage.fromJson,
+  );
 
   /// `POST /imageCar` multipart: `QuotationID` (must precede the files —
   /// multer picks the folder from it), `images` (files) and one
@@ -280,9 +281,9 @@ class QuotationsApi {
   /// `GET /images/car/:quotationId/:filename` (requires `x-access-token`,
   /// see [authHeaders]).
   String imageUrl(QuotationImage image) => _api.url(
-        '/images/car/${Uri.encodeComponent(image.quotationId)}/'
-        '${Uri.encodeComponent(image.fileName)}',
-      );
+    '/images/car/${Uri.encodeComponent(image.quotationId)}/'
+    '${Uri.encodeComponent(image.fileName)}',
+  );
 
   Map<String, String> get authHeaders => _api.authHeaders;
 
@@ -291,7 +292,8 @@ class QuotationsApi {
   Future<List<CarOption>> carsByModel(int modelId) =>
       _api.getList('/cars/by-model/$modelId', CarOption.fromJson);
 
-  Future<List<CarOption>> allCars() => _api.getList('/cars', CarOption.fromJson);
+  Future<List<CarOption>> allCars() =>
+      _api.getList('/cars', CarOption.fromJson);
 
   /// `POST /invoices/create-with-repair` {QuotationID, BrandID, ModelID,
   /// CarID, CustomerID, ReceiveType, ReceiveAppointmentDate}: creates a
@@ -321,8 +323,8 @@ class QuotationsApi {
         // Web sends the local "yyyy-MM-ddTHH:mm" from its date/time pickers.
         'ReceiveAppointmentDate': receiveType == 2 && appointment != null
             ? '${formatApiDate(appointment)}T'
-                '${appointment.hour.toString().padLeft(2, '0')}:'
-                '${appointment.minute.toString().padLeft(2, '0')}'
+                  '${appointment.hour.toString().padLeft(2, '0')}:'
+                  '${appointment.minute.toString().padLeft(2, '0')}'
             : null,
       },
     );

@@ -78,18 +78,14 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
     if (!mounted) {
       return;
     }
-    final id = await runWithProgress<int>(
-      context,
-      () async {
-        if (_isEdit) {
-          final id = widget.customer!.id;
-          await api.update(id, _customer.toJson());
-          return id;
-        }
-        return await api.create(_customer.toJson(), _address.toJson()) ?? 0;
-      },
-      successMessage: 'บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว',
-    );
+    final id = await runWithProgress<int>(context, () async {
+      if (_isEdit) {
+        final id = widget.customer!.id;
+        await api.update(id, _customer.toJson());
+        return id;
+      }
+      return await api.create(_customer.toJson(), _address.toJson()) ?? 0;
+    }, successMessage: 'บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว');
     if (id != null && mounted) {
       Navigator.of(context).pop(id);
     }
@@ -98,7 +94,8 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
   /// The ID number already belongs to [other]. In create mode offer to open
   /// that customer instead (the page pops with their id).
   Future<void> _onDuplicateIdNumber(Customer other) async {
-    final message = 'เลขประจำตัว ${other.idNumber ?? ''} '
+    final message =
+        'เลขประจำตัว ${other.idNumber ?? ''} '
         'เป็นของลูกค้า "${other.fullName}" (รหัส #${other.id}) อยู่แล้ว';
     if (_isEdit) {
       await AppDialogs.warn(context, message);
@@ -119,9 +116,7 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'แก้ไขข้อมูลลูกค้า' : 'เพิ่มลูกค้า'),
-        actions: [
-          TextButton(onPressed: _save, child: const Text('บันทึก')),
-        ],
+        actions: [TextButton(onPressed: _save, child: const Text('บันทึก'))],
       ),
       body: Form(
         key: _formKey,
@@ -169,10 +164,9 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }

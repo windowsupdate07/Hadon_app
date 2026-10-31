@@ -37,7 +37,9 @@ class _RepairTimelineSectionState extends State<RepairTimelineSection> {
   }
 
   void _reload() {
-    setState(() => _future = widget.api.logs(widget.repairId));
+    setState(() {
+      _future = widget.api.logs(widget.repairId);
+    });
   }
 
   @override
@@ -131,7 +133,9 @@ class _RepairTimelinePageState extends State<RepairTimelinePage> {
 
   Future<void> _refresh() async {
     final future = widget.api.logs(widget.repairId);
-    setState(() => _future = future);
+    setState(() {
+      _future = future;
+    });
     try {
       await future;
     } catch (_) {

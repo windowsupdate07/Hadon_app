@@ -52,47 +52,53 @@ class Lookups {
       _load('/province', 'ProvinceID', (j) => '${j['name_th'] ?? ''}');
 
   Future<List<Option>> districts(int provinceId) => _load(
-        '/district/province/$provinceId',
-        'DistrictID',
-        (j) => '${j['name_th'] ?? ''}',
-      );
+    '/district/province/$provinceId',
+    'DistrictID',
+    (j) => '${j['name_th'] ?? ''}',
+  );
 
   /// `raw['Zipcode']` holds the postal code.
   Future<List<Option>> subDistricts(int districtId) => _load(
-        '/subDistrict/district/$districtId',
-        'SubDistrictID',
-        (j) => '${j['name_th'] ?? ''}',
-      );
+    '/subDistrict/district/$districtId',
+    'SubDistrictID',
+    (j) => '${j['name_th'] ?? ''}',
+  );
 
   Future<List<Option>> brands() =>
       _load('/brands', 'BrandID', (j) => '${j['Brand'] ?? ''}');
 
-  Future<List<Option>> carModels(int brandId) =>
-      _load('/carModel/brand/$brandId', 'ModelID', (j) => '${j['Model'] ?? ''}');
+  Future<List<Option>> carModels(int brandId) => _load(
+    '/carModel/brand/$brandId',
+    'ModelID',
+    (j) => '${j['Model'] ?? ''}',
+  );
 
   Future<List<Option>> customerTitles() => _load(
-        '/customerTitle',
-        'CustomerTitleID',
-        (j) => '${j['CustomerTitle'] ?? ''}',
-      );
+    '/customerTitle',
+    'CustomerTitleID',
+    (j) => '${j['CustomerTitle'] ?? ''}',
+  );
 
-  Future<List<Option>> addressTypes() =>
-      _load('/addressType', 'AddressTypeID', (j) => '${j['AddressType'] ?? ''}');
+  Future<List<Option>> addressTypes() => _load(
+    '/addressType',
+    'AddressTypeID',
+    (j) => '${j['AddressType'] ?? ''}',
+  );
 
   Future<List<Option>> units() =>
       _load('/unit', 'UnitID', (j) => '${j['Unit'] ?? ''}');
 
   Future<List<Option>> repairCategories() => _load(
-        '/repairCategory',
-        'RepairCategoryID',
-        (j) => '${j['RepairCategory'] ?? ''}',
-      );
+    '/repairCategory',
+    'RepairCategoryID',
+    (j) => '${j['RepairCategory'] ?? ''}',
+  );
 
   Future<List<Option>> partCategories() => _load(
-        '/partCategory',
-        'PartCategoryID',
-        (j) => '${j['PartCategoryName'] ?? ''}',
-      );
+    '/partCategory',
+    'PartCategoryID',
+    (j) => '${j['PartCategoryName'] ?? ''}',
+  );
 
   Future<List<Option>> positions() =>
       _load('/position', 'PositionID', (j) => '${j['PositionTitle'] ?? ''}');
@@ -101,25 +107,25 @@ class Lookups {
       _load('/role', 'RoleID', (j) => '${j['RoleName'] ?? ''}');
 
   Future<List<Option>> employeeStatuses() => _load(
-        '/employeeStatus',
-        'EmployeeStatusID',
-        (j) => '${j['EmployeeStatusTitle'] ?? ''}',
-      );
+    '/employeeStatus',
+    'EmployeeStatusID',
+    (j) => '${j['EmployeeStatusTitle'] ?? ''}',
+  );
 
   Future<List<Option>> vendorTypes() =>
       _load('/vendorType', 'VendorTypeID', (j) => '${j['VendorType'] ?? ''}');
 
   Future<List<Option>> imageCarTypes() => _load(
-        '/imageCarType',
-        'ImageCarTypeID',
-        (j) => '${j['ImageCarType'] ?? ''}',
-      );
+    '/imageCarType',
+    'ImageCarTypeID',
+    (j) => '${j['ImageCarType'] ?? ''}',
+  );
 
   Future<List<Option>> discountTypes() => _load(
-        '/discounttype',
-        'DiscountTypeID',
-        (j) => '${j['DiscountType'] ?? ''}',
-      );
+    '/discounttype',
+    'DiscountTypeID',
+    (j) => '${j['DiscountType'] ?? ''}',
+  );
 
   void clear() => _cache.clear();
 }

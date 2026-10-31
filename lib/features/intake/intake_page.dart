@@ -63,7 +63,9 @@ class _IntakePageState extends State<IntakePage> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
     await _future;
   }
 

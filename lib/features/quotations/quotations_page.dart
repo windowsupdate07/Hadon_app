@@ -24,6 +24,7 @@ class _QuotationsPageState extends State<QuotationsPage> {
   late final QuotationsApi _api = QuotationsApi(context.read<ApiClient>());
   late Future<List<Quotation>> _future;
   String _query = '';
+
   /// null = ทั้งหมด.
   QuotationStage? _stage;
   int _page = 0;
@@ -48,7 +49,9 @@ class _QuotationsPageState extends State<QuotationsPage> {
 
   Future<void> _refresh() async {
     final f = _load();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
     try {
       await f;
     } catch (_) {
@@ -74,9 +77,8 @@ class _QuotationsPageState extends State<QuotationsPage> {
   List<Quotation> _searched(List<Quotation> all) =>
       all.where((q) => _query.isEmpty || q.matches(_query)).toList();
 
-  List<Quotation> _filtered(List<Quotation> all) => _searched(all)
-      .where((q) => _stage == null || q.stage == _stage)
-      .toList();
+  List<Quotation> _filtered(List<Quotation> all) =>
+      _searched(all).where((q) => _stage == null || q.stage == _stage).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +110,10 @@ class _QuotationsPageState extends State<QuotationsPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    for (final s in <QuotationStage?>[null, ...QuotationStage.values])
+                    for (final s in <QuotationStage?>[
+                      null,
+                      ...QuotationStage.values,
+                    ])
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
@@ -180,11 +185,11 @@ class _QuotationTile extends StatelessWidget {
   final VoidCallback onTap;
 
   static Color _color(QuotationStage s) => switch (s) {
-        QuotationStage.pending => Colors.blueGrey,
-        QuotationStage.waitingRepair => Colors.blue,
-        QuotationStage.waitingParts => Colors.orange,
-        QuotationStage.sent => Colors.green,
-      };
+    QuotationStage.pending => Colors.blueGrey,
+    QuotationStage.waitingRepair => Colors.blue,
+    QuotationStage.waitingParts => Colors.orange,
+    QuotationStage.sent => Colors.green,
+  };
 
   @override
   Widget build(BuildContext context) {

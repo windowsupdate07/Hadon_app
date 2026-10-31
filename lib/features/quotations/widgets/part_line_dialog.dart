@@ -18,10 +18,10 @@ class PartLineValues {
 
   /// Body for `PUT /quotation-part/:id`.
   Map<String, dynamic> toJson() => {
-        'NumOfUse': quantity,
-        'PricePerUnit': pricePerUnit,
-        'ServiceFee': serviceFee,
-      };
+    'NumOfUse': quantity,
+    'PricePerUnit': pricePerUnit,
+    'ServiceFee': serviceFee,
+  };
 }
 
 /// Dialog to edit quantity, unit price and service fee of a part line.
@@ -50,9 +50,12 @@ class _PartLineDialog extends StatefulWidget {
 class _PartLineDialogState extends State<_PartLineDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _qty = TextEditingController(text: '${widget.initial.quantity}');
-  late final _price =
-      TextEditingController(text: _plain(widget.initial.pricePerUnit));
-  late final _fee = TextEditingController(text: _plain(widget.initial.serviceFee));
+  late final _price = TextEditingController(
+    text: _plain(widget.initial.pricePerUnit),
+  );
+  late final _fee = TextEditingController(
+    text: _plain(widget.initial.serviceFee),
+  );
 
   static String _plain(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
@@ -103,15 +106,17 @@ class _PartLineDialogState extends State<_PartLineDialog> {
               ),
               TextFormField(
                 controller: _price,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'ราคา/หน่วย'),
                 validator: _money,
               ),
               TextFormField(
                 controller: _fee,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'ค่าบริการ (ต่อรายการ)',
                 ),

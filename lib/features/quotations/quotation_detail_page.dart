@@ -42,10 +42,10 @@ class _DetailData {
   final List<QuotationReceipt>? receipts;
 
   DocumentTotals get totals => quotationTotals(
-        quotation,
-        details,
-        cashPledges: pledges.map((p) => p.amount),
-      );
+    quotation,
+    details,
+    cashPledges: pledges.map((p) => p.amount),
+  );
 
   /// Web `isCanEdit == false`: a repair was opened from the quotation.
   bool get locked => quotation.isApproved;
@@ -71,11 +71,11 @@ class _DetailData {
 
   /// A repair invoice was already confirmed/paid with the pledge deducted.
   bool get repairInvoiceSettled => (invoices ?? const <Invoice>[]).any(
-        (i) =>
-            !i.isDeposit &&
-            (i.statusId == InvoiceStatus.pendingPayment ||
-                i.statusId == InvoiceStatus.paid),
-      );
+    (i) =>
+        !i.isDeposit &&
+        (i.statusId == InvoiceStatus.pendingPayment ||
+            i.statusId == InvoiceStatus.paid),
+  );
 
   List<QuotationPart> get parts => details.expand((d) => d.parts).toList();
 
@@ -169,7 +169,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
 
   Future<void> _refresh() async {
     final f = _load();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
     _photosKey.currentState?.reload();
     try {
       await f;
@@ -180,14 +182,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
 
   /// Runs [action] with a progress dialog and reloads on success.
   Future<bool> _mutate(Future<void> Function() action, {String? toast}) async {
-    final ok = await runWithProgress(
-      context,
-      () async {
-        await action();
-        return true;
-      },
-      successMessage: toast,
-    );
+    final ok = await runWithProgress(context, () async {
+      await action();
+      return true;
+    }, successMessage: toast);
     if (ok == true && mounted) {
       await _refresh();
       return true;
@@ -220,7 +218,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     if (v == null || !mounted) {
       return;
     }
-    await _mutate(() => _api.updateVehicle(q.id, v), toast: 'บันทึกข้อมูลรถยนต์แล้ว');
+    await _mutate(
+      () => _api.updateVehicle(q.id, v),
+      toast: 'บันทึกข้อมูลรถยนต์แล้ว',
+    );
   }
 
   Future<void> _setVat(Quotation q, bool isVat, int vatType) {
@@ -231,7 +232,8 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     final ok = await AppDialogs.confirm(
       context,
       title: 'ยืนยันการยกเลิกใบเสนอราคา?',
-      message: 'คุณต้องการยกเลิกใบเสนอราคา ${q.id} ใช่หรือไม่?\n'
+      message:
+          'คุณต้องการยกเลิกใบเสนอราคา ${q.id} ใช่หรือไม่?\n'
           'ข้อมูลจะถูกลบออกจากระบบ',
       destructive: true,
     );
@@ -260,7 +262,8 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       final ok = await AppDialogs.confirm(
         context,
         title: 'ยืนยันการคัดลอก?',
-        message: 'คุณต้องการคัดลอกรายการไปยังใบเสนอราคาใหม่ '
+        message:
+            'คุณต้องการคัดลอกรายการไปยังใบเสนอราคาใหม่ '
             'โดยใช้ข้อมูลรถยนต์เดิมใช่หรือไม่?',
       );
       if (!ok || !mounted) {
@@ -354,7 +357,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     final invoiceId = await runWithProgress(
       context,
       () async =>
-          await _api.addCashPledge(quotationId: d.quotation.id, amount: amount) ??
+          await _api.addCashPledge(
+            quotationId: d.quotation.id,
+            amount: amount,
+          ) ??
           '',
     );
     if (invoiceId == null || !mounted) {
@@ -385,7 +391,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       message: dep == null
           ? 'ท่านต้องการลบเงินมัดจำ ใช่หรือไม่?'
           : 'ระบบจะยกเลิกใบแจ้งหนี้ (เงินมัดจำ) ${dep.id} '
-              'และลบเงินมัดจำของใบเสนอราคานี้ ใช่หรือไม่?',
+                'และลบเงินมัดจำของใบเสนอราคานี้ ใช่หรือไม่?',
       destructive: true,
     );
     if (!ok || !mounted) {
@@ -396,7 +402,8 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         await _api.invoices.changeStatus(
           dep.id,
           InvoiceStatus.cancelled,
-          netTotal: dep.amount ?? d.pledges.fold<double>(0, (a, p) => a + p.amount),
+          netTotal:
+              dep.amount ?? d.pledges.fold<double>(0, (a, p) => a + p.amount),
         );
       } else {
         for (final p in d.pledges) {
@@ -466,7 +473,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     final brandId = q.brandId;
     final modelId = q.modelId;
     if (brandId == null || modelId == null) {
-      await AppDialogs.warn(context, 'ข้อมูลใบเสนอราคาไม่ครบถ้วน (ยี่ห้อ/รุ่น)');
+      await AppDialogs.warn(
+        context,
+        'ข้อมูลใบเสนอราคาไม่ครบถ้วน (ยี่ห้อ/รุ่น)',
+      );
       return;
     }
 
@@ -483,7 +493,8 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         final go = await AppDialogs.confirm(
           context,
           title: 'แจ้งเตือนรูปภาพรถยนต์',
-          message: 'ยังไม่ได้แนบรูปรถยนต์ครบทั้ง 8 ภาพ (ขาด $missing ภาพ)\n'
+          message:
+              'ยังไม่ได้แนบรูปรถยนต์ครบทั้ง 8 ภาพ (ขาด $missing ภาพ)\n'
               'ต้องการส่งซ่อมต่อไปโดยไม่อัปโหลดรูปภาพหรือไม่?',
         );
         if (!go || !mounted) {
@@ -500,7 +511,8 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     final ok = await AppDialogs.confirm(
       context,
       title: 'ยืนยันการเปิดใบสั่งซ่อม?',
-      message: 'ระบบจะสร้างงานซ่อมและใบแจ้งหนี้ พร้อมตัดสต็อกอะไหล่\n\n'
+      message:
+          'ระบบจะสร้างงานซ่อมและใบแจ้งหนี้ พร้อมตัดสต็อกอะไหล่\n\n'
           'ลูกค้า: ${q.customerDisplayName.isEmpty ? 'ไม่ระบุ' : q.customerDisplayName}\n'
           'รถยนต์: ${q.brandModel}\n'
           'ทะเบียน: ${q.plate.isEmpty ? 'ไม่ระบุ' : q.plate}\n'
@@ -560,7 +572,11 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     if (!mounted) {
       return;
     }
-    await openQuotationPdf(context, quotationId: d.quotation.id, grouped: grouped);
+    await openQuotationPdf(
+      context,
+      quotationId: d.quotation.id,
+      grouped: grouped,
+    );
   }
 
   // ---- UI ----
@@ -652,7 +668,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: FilledButton.tonalIcon(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
             onPressed: () => context.push('/repairs/${repair.id}'),
             icon: const Icon(Icons.car_repair),
             label: Text('ดูงานซ่อม #${repair.id}'),
@@ -671,7 +689,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
           ),
           onPressed: d.details.isEmpty ? null : () => _sendToRepair(d),
           icon: const Icon(Icons.build_circle_outlined),
-          label: Text(short ? 'ส่งซ่อม (อะไหล่ไม่พอ)' : 'ส่งซ่อม / เปิดใบสั่งซ่อม'),
+          label: Text(
+            short ? 'ส่งซ่อม (อะไหล่ไม่พอ)' : 'ส่งซ่อม / เปิดใบสั่งซ่อม',
+          ),
         ),
       ),
     );
@@ -683,7 +703,12 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        if (d.cancelled) _banner(Colors.red, Icons.block, 'งานซ่อมของใบเสนอราคานี้ถูกยกเลิกแล้ว'),
+        if (d.cancelled)
+          _banner(
+            Colors.red,
+            Icons.block,
+            'งานซ่อมของใบเสนอราคานี้ถูกยกเลิกแล้ว',
+          ),
         if (d.locked && !d.cancelled)
           _banner(
             Colors.green,
@@ -759,7 +784,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
             Icon(icon, color: color),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                text,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -784,7 +812,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
           InfoRow('ยี่ห้อ / รุ่น', q.brandModel),
           InfoRow('ทะเบียน', q.plate),
           InfoRow('สีรถยนต์', q.car?['Color']?.toString()),
-          InfoRow('เลขไมล์ (กม.)', q.mileage == null ? null : formatNumber(q.mileage)),
+          InfoRow(
+            'เลขไมล์ (กม.)',
+            q.mileage == null ? null : formatNumber(q.mileage),
+          ),
           InfoRow('การติดตั้งแก๊ส', q.gasText),
           InfoRow('ประเภทลมยาง', q.tireText),
           InfoRow(
@@ -860,8 +891,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
                 child: ActionChip(
                   avatar: const Icon(Icons.content_copy, size: 16),
                   label: Text('คัดลอกไป $copied แล้ว'),
-                  onPressed: () =>
-                      context.push('/quotations/${Uri.encodeComponent(copied)}'),
+                  onPressed: () => context.push(
+                    '/quotations/${Uri.encodeComponent(copied)}',
+                  ),
                 ),
               ),
             ),
@@ -1028,7 +1060,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  inv.isDeposit ? Icons.savings_outlined : Icons.receipt_long_outlined,
+                  inv.isDeposit
+                      ? Icons.savings_outlined
+                      : Icons.receipt_long_outlined,
                 ),
                 title: Text('${inv.typeLabel} ${inv.id}'),
                 subtitle: Text(
@@ -1059,9 +1093,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         Icons.task_alt,
         color: r.isPaid ? Colors.green : Colors.grey,
       ),
-      title: Text(
-        'ใบเสร็จ${r.isDeposit ? ' (เงินมัดจำ)' : ''} ${r.billingId}',
-      ),
+      title: Text('ใบเสร็จ${r.isDeposit ? ' (เงินมัดจำ)' : ''} ${r.billingId}'),
       subtitle: Text(
         '${r.isPaid ? 'ชำระเงินแล้ว' : 'ยกเลิกการชำระเงิน'} · '
         '${formatMoney(r.amount)} บาท',

@@ -73,7 +73,9 @@ class _CashPledgeDialogState extends State<_CashPledgeDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('เลือกเปอร์เซ็นต์มัดจำ (จากยอดรวม ${formatMoney(_grand)} บาท)'),
+            Text(
+              'เลือกเปอร์เซ็นต์มัดจำ (จากยอดรวม ${formatMoney(_grand)} บาท)',
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -97,10 +99,13 @@ class _CashPledgeDialogState extends State<_CashPledgeDialog> {
               TextField(
                 controller: _manual,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
                   labelText: 'จำนวนเงิน (บาท)',
-                  helperText: 'ไม่เกิน ${formatMoney(_grand.floorToDouble())} บาท',
+                  helperText:
+                      'ไม่เกิน ${formatMoney(_grand.floorToDouble())} บาท',
                   prefixIcon: const Icon(Icons.payments_outlined),
                 ),
                 onChanged: (_) => setState(() {}),
@@ -129,7 +134,9 @@ class _CashPledgeDialogState extends State<_CashPledgeDialog> {
           child: const Text('ยกเลิก'),
         ),
         FilledButton(
-          onPressed: amount <= 0 ? null : () => Navigator.of(context).pop(amount),
+          onPressed: amount <= 0
+              ? null
+              : () => Navigator.of(context).pop(amount),
           child: const Text('บันทึกข้อมูล'),
         ),
       ],

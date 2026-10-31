@@ -80,8 +80,10 @@ class _CustomerPickerSheetState extends State<_CustomerPickerSheet> {
                       leading: const CircleAvatar(child: Icon(Icons.person)),
                       title: Text(c.fullName),
                       subtitle: Text(
-                        [c.tel ?? '-', if (plates.isNotEmpty) plates]
-                            .join(' · '),
+                        [
+                          c.tel ?? '-',
+                          if (plates.isNotEmpty) plates,
+                        ].join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

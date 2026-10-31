@@ -16,13 +16,19 @@ Future<void> openServerPdf(
   final api = context.read<ApiClient>();
   final file = await runWithProgress(
     context,
-    () => api.download(path, fileName.endsWith('.pdf') ? fileName : '$fileName.pdf'),
+    () => api.download(
+      path,
+      fileName.endsWith('.pdf') ? fileName : '$fileName.pdf',
+    ),
   );
   if (file == null) {
     return;
   }
   final result = await OpenFilex.open(file.path, type: 'application/pdf');
   if (result.type != ResultType.done && context.mounted) {
-    await AppDialogs.warn(context, 'ไม่สามารถเปิดไฟล์ PDF ได้: ${result.message}');
+    await AppDialogs.warn(
+      context,
+      'ไม่สามารถเปิดไฟล์ PDF ได้: ${result.message}',
+    );
   }
 }

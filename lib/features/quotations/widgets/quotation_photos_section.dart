@@ -49,7 +49,9 @@ class QuotationPhotosSectionState extends State<QuotationPhotosSection> {
     return list;
   }
 
-  void reload() => setState(() => _future = _load());
+  void reload() => setState(() {
+    _future = _load();
+  });
 
   Future<void> _add(List<QuotationImage> existing) async {
     final typeId = await _pickType(existing);

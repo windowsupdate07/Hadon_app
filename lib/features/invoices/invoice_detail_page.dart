@@ -66,7 +66,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
 
   Future<void> _refresh() async {
     final f = _load();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
     try {
       await f;
     } catch (_) {
@@ -75,14 +77,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   }
 
   Future<bool> _mutate(Future<void> Function() action, {String? toast}) async {
-    final ok = await runWithProgress(
-      context,
-      () async {
-        await action();
-        return true;
-      },
-      successMessage: toast,
-    );
+    final ok = await runWithProgress(context, () async {
+      await action();
+      return true;
+    }, successMessage: toast);
     if (ok == true && mounted) {
       await _refresh();
       return true;
@@ -96,7 +94,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     final ok = await AppDialogs.confirm(
       context,
       title: 'ยืนยันใบแจ้งหนี้?',
-      message: 'ยอดที่ต้องชำระ ${formatMoney(d.totals.netTotal)} บาท\n'
+      message:
+          'ยอดที่ต้องชำระ ${formatMoney(d.totals.netTotal)} บาท\n'
           'หลังยืนยันจะไม่สามารถเปลี่ยนการคิดภาษีได้',
     );
     if (!ok || !mounted) {
@@ -135,7 +134,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     final ok = await AppDialogs.confirm(
       context,
       title: 'ยืนยันการชำระเงิน?',
-      message: 'ยืนยันว่าได้รับชำระเงิน ${formatMoney(net)} บาท แล้ว\n'
+      message:
+          'ยืนยันว่าได้รับชำระเงิน ${formatMoney(net)} บาท แล้ว\n'
           'ระบบจะออกใบเสร็จรับเงินให้อัตโนมัติ',
     );
     if (!ok || !mounted) {
@@ -178,7 +178,8 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     final ok = await AppDialogs.confirm(
       context,
       title: 'ยกเลิกใบแจ้งหนี้?',
-      message: 'คุณต้องการยกเลิกใบแจ้งหนี้ ${inv.id} ใช่หรือไม่?'
+      message:
+          'คุณต้องการยกเลิกใบแจ้งหนี้ ${inv.id} ใช่หรือไม่?'
           '${inv.isDeposit ? '\nเงินมัดจำของใบเสนอราคาจะถูกลบด้วย' : ''}',
       destructive: true,
     );
@@ -213,18 +214,18 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   // ---- PDF ----
 
   Future<void> _pdf(Invoice inv) => openBillingPdf(
-        context,
-        path: inv.pdfPath,
-        fileName: '${inv.id}.pdf',
-        isVat: inv.isVat,
-      );
+    context,
+    path: inv.pdfPath,
+    fileName: '${inv.id}.pdf',
+    isVat: inv.isVat,
+  );
 
   Future<void> _receiptPdf(Invoice inv, QuotationReceipt r) => openBillingPdf(
-        context,
-        path: r.pdfPath,
-        fileName: '${r.billingId}.pdf',
-        isVat: inv.isVat,
-      );
+    context,
+    path: r.pdfPath,
+    fileName: '${r.billingId}.pdf',
+    isVat: inv.isVat,
+  );
 
   // ---- UI ----
 
@@ -307,7 +308,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
           children: [
             for (var i = 0; i < buttons.length; i++) ...[
               if (i > 0) const SizedBox(width: 8),
-              Expanded(flex: i == buttons.length - 1 ? 2 : 1, child: buttons[i]),
+              Expanded(
+                flex: i == buttons.length - 1 ? 2 : 1,
+                child: buttons[i],
+              ),
             ],
           ],
         ),
@@ -333,7 +337,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                 children: [
                   Icon(Icons.block, color: Colors.red),
                   SizedBox(width: 8),
-                  Text('ยกเลิกใบแจ้งหนี้', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    'ยกเลิกใบแจ้งหนี้',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
@@ -362,7 +369,10 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                     ),
                   if (inv.quotationId != null)
                     ActionChip(
-                      avatar: const Icon(Icons.request_quote_outlined, size: 18),
+                      avatar: const Icon(
+                        Icons.request_quote_outlined,
+                        size: 18,
+                      ),
                       label: Text(inv.quotationId!),
                       onPressed: () => context.push(
                         '/quotations/${Uri.encodeComponent(inv.quotationId!)}',
@@ -417,7 +427,9 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
                       color: r.isPaid ? Colors.green : Colors.grey,
                     ),
                     title: Text(r.billingId),
-                    subtitle: Text(r.isPaid ? 'ชำระเงินแล้ว' : 'ยกเลิกการชำระเงิน'),
+                    subtitle: Text(
+                      r.isPaid ? 'ชำระเงินแล้ว' : 'ยกเลิกการชำระเงิน',
+                    ),
                     trailing: const Icon(Icons.picture_as_pdf_outlined),
                     onTap: () => _receiptPdf(inv, r),
                   ),

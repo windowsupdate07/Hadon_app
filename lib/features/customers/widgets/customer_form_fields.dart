@@ -15,20 +15,20 @@ class CustomerFormData {
     String? idNumber,
     String? tel,
     String? ratingColor,
-  })  : rating = CustomerRating.of(ratingColor),
-        name = TextEditingController(text: name),
-        surname = TextEditingController(text: surname),
-        idNumber = TextEditingController(text: idNumber),
-        tel = TextEditingController(text: tel);
+  }) : rating = CustomerRating.of(ratingColor),
+       name = TextEditingController(text: name),
+       surname = TextEditingController(text: surname),
+       idNumber = TextEditingController(text: idNumber),
+       tel = TextEditingController(text: tel);
 
   factory CustomerFormData.fromCustomer(Customer c) => CustomerFormData(
-        titleId: c.titleId,
-        name: c.name,
-        surname: c.surname,
-        idNumber: c.idNumber,
-        tel: c.tel,
-        ratingColor: c.ratingColor,
-      );
+    titleId: c.titleId,
+    name: c.name,
+    surname: c.surname,
+    idNumber: c.idNumber,
+    tel: c.tel,
+    ratingColor: c.ratingColor,
+  );
 
   int? titleId;
 

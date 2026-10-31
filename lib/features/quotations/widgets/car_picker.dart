@@ -48,8 +48,10 @@ class _CarPickerSheetState extends State<_CarPickerSheet> {
       builder: (context, scroll) => Column(
         children: [
           const SizedBox(height: 8),
-          Text('เลือกรถยนต์ของลูกค้า',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'เลือกรถยนต์ของลูกค้า',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           SearchField(
             hint: 'ค้นหาทะเบียน / ชื่อลูกค้า / เบอร์โทร / VIN',
             onChanged: (v) => setState(() => _query = v),
@@ -74,7 +76,9 @@ class _CarPickerSheetState extends State<_CarPickerSheet> {
                 if (snap.hasError) {
                   return ErrorView(
                     error: snap.error!,
-                    onRetry: () => setState(() => _future = _load()),
+                    onRetry: () => setState(() {
+                      _future = _load();
+                    }),
                   );
                 }
                 final cars = snap.data!

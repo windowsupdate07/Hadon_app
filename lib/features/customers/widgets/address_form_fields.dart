@@ -15,17 +15,17 @@ class AddressFormData {
     this.districtId,
     this.subDistrictId,
     this.zipcode,
-  })  : line1 = TextEditingController(text: line1),
-        line2 = TextEditingController(text: line2);
+  }) : line1 = TextEditingController(text: line1),
+       line2 = TextEditingController(text: line2);
 
   factory AddressFormData.fromAddress(Address a) => AddressFormData(
-        line1: a.line1,
-        line2: a.line2,
-        provinceId: a.provinceId,
-        districtId: a.districtId,
-        subDistrictId: a.subDistrictId,
-        zipcode: a.zipcode,
-      );
+    line1: a.line1,
+    line2: a.line2,
+    provinceId: a.provinceId,
+    districtId: a.districtId,
+    subDistrictId: a.subDistrictId,
+    zipcode: a.zipcode,
+  );
 
   final TextEditingController line1;
   final TextEditingController line2;
@@ -38,12 +38,12 @@ class AddressFormData {
 
   /// Address columns (without OwnerID / AddressTypeID / IsDefault).
   Map<String, dynamic> toJson() => {
-        'Line1': line1.text.trim(),
-        'Line2': line2.text.trim(),
-        'ProvinceID': provinceId,
-        'DistrictID': districtId,
-        'SubDistrictID': subDistrictId,
-      };
+    'Line1': line1.text.trim(),
+    'Line2': line2.text.trim(),
+    'ProvinceID': provinceId,
+    'DistrictID': districtId,
+    'SubDistrictID': subDistrictId,
+  };
 
   void dispose() {
     line1.dispose();
@@ -180,10 +180,8 @@ Future<AddressDialogResult?> showAddressDialog(
   return showDialog<AddressDialogResult>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => _AddressDialog(
-      address: address,
-      showDefaultOption: showDefaultOption,
-    ),
+    builder: (_) =>
+        _AddressDialog(address: address, showDefaultOption: showDefaultOption),
   );
 }
 
@@ -214,9 +212,9 @@ class _AddressDialogState extends State<_AddressDialog> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    Navigator.of(context).pop(
-      AddressDialogResult(_data.toJson(), makeDefault: _makeDefault),
-    );
+    Navigator.of(
+      context,
+    ).pop(AddressDialogResult(_data.toJson(), makeDefault: _makeDefault));
   }
 
   @override

@@ -55,7 +55,9 @@ class _CreateQuotationPage extends StatefulWidget {
 class _CreateQuotationPageState extends State<_CreateQuotationPage> {
   final _formKey = GlobalKey<FormState>();
   final _vehicleKey = GlobalKey<_VehicleFieldsState>();
-  late final _comment = TextEditingController(text: widget.defaultComment ?? '');
+  late final _comment = TextEditingController(
+    text: widget.defaultComment ?? '',
+  );
   late CarOption? _car = widget.initialCar;
 
   @override
@@ -78,7 +80,10 @@ class _CreateQuotationPageState extends State<_CreateQuotationPage> {
       return;
     }
     if (car.customerId == null || car.brandId == null || car.modelId == null) {
-      await AppDialogs.warn(context, 'ข้อมูลรถยนต์ไม่ครบถ้วน (ลูกค้า/ยี่ห้อ/รุ่น)');
+      await AppDialogs.warn(
+        context,
+        'ข้อมูลรถยนต์ไม่ครบถ้วน (ลูกค้า/ยี่ห้อ/รุ่น)',
+      );
       return;
     }
     if (!_formKey.currentState!.validate()) {
@@ -121,12 +126,17 @@ class _CreateQuotationPageState extends State<_CreateQuotationPage> {
               title: 'รถยนต์ / ลูกค้า',
               trailing: car == null
                   ? null
-                  : TextButton(onPressed: _pickCar, child: const Text('เปลี่ยนคัน')),
+                  : TextButton(
+                      onPressed: _pickCar,
+                      child: const Text('เปลี่ยนคัน'),
+                    ),
               child: car == null
                   ? OutlinedButton.icon(
                       onPressed: _pickCar,
                       icon: const Icon(Icons.directions_car_outlined),
-                      label: const Text('เลือกรถยนต์ (ทะเบียน / ชื่อลูกค้า / เบอร์โทร)'),
+                      label: const Text(
+                        'เลือกรถยนต์ (ทะเบียน / ชื่อลูกค้า / เบอร์โทร)',
+                      ),
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -188,7 +198,8 @@ class _VehicleFieldsState extends State<VehicleFields> {
   late DateTime? _taxDate = widget.initial?.taxDate;
 
   /// "ไม่ระบุป้ายภาษี" — for an edit, preset when the stored date is null.
-  late bool _noTaxPlate = widget.initial != null && widget.initial!.taxDate == null;
+  late bool _noTaxPlate =
+      widget.initial != null && widget.initial!.taxDate == null;
   late int _gas = widget.initial?.gasInstallation ?? 0;
   late int _tire = widget.initial?.tireType ?? 0;
   bool _taxError = false;
@@ -263,7 +274,9 @@ class _VehicleFieldsState extends State<VehicleFields> {
                   child: Text(
                     _noTaxPlate
                         ? 'ไม่ระบุป้ายภาษี'
-                        : (_taxDate == null ? 'แตะเพื่อเลือกวันที่' : formatThaiDate(_taxDate)),
+                        : (_taxDate == null
+                              ? 'แตะเพื่อเลือกวันที่'
+                              : formatThaiDate(_taxDate)),
                     style: _noTaxPlate || _taxDate == null
                         ? TextStyle(color: theme.hintColor)
                         : null,

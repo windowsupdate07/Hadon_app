@@ -48,8 +48,7 @@ GoRouter createRouter(AuthProvider auth) {
         routes: [
           GoRoute(
             path: ':id',
-            builder: (_, s) =>
-                RepairDetailPage(repairId: _intParam(s, 'id')),
+            builder: (_, s) => RepairDetailPage(repairId: _intParam(s, 'id')),
           ),
         ],
       ),

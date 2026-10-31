@@ -49,7 +49,9 @@ class CustomersApi {
         },
       },
     );
-    return res is Map ? asInt(asMap(res['createCustomer'])?['CustomerID']) : null;
+    return res is Map
+        ? asInt(asMap(res['createCustomer'])?['CustomerID'])
+        : null;
   }
 
   /// `POST /customers/simple` (crud.create): customer only, no address.

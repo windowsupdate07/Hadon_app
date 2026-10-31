@@ -99,24 +99,24 @@ class _CarFormPageState extends State<CarFormPage> {
   }
 
   Map<String, dynamic> _carJson({int? customerId}) => {
-        'CustomerID': ?customerId,
-        'BrandID': _brandId,
-        'ModelID': _modelId,
-        'CarTitle': _clean(_carTitle),
-        'CarNumber': _clean(_carNumber),
-        'ProvinceID': _provinceId,
-        'VIN': _clean(_vin)?.toUpperCase(),
-        'EC': _clean(_ec)?.toUpperCase(),
-        'Color': _clean(_color),
-      };
+    'CustomerID': ?customerId,
+    'BrandID': _brandId,
+    'ModelID': _modelId,
+    'CarTitle': _clean(_carTitle),
+    'CarNumber': _clean(_carNumber),
+    'ProvinceID': _provinceId,
+    'VIN': _clean(_vin)?.toUpperCase(),
+    'EC': _clean(_ec)?.toUpperCase(),
+    'Color': _clean(_color),
+  };
 
   /// Plate identity for the existence check. Brand / model are left out on
   /// purpose so the same plate under another model is still reported.
   Map<String, dynamic> _plateJson() => {
-        'CarTitle': _clean(_carTitle),
-        'CarNumber': _clean(_carNumber),
-        'ProvinceID': _provinceId,
-      };
+    'CarTitle': _clean(_carTitle),
+    'CarNumber': _clean(_carNumber),
+    'ProvinceID': _provinceId,
+  };
 
   bool get _creatingCustomer =>
       _canCreateCustomer && _ownerMode == _OwnerMode.create;
@@ -196,7 +196,8 @@ class _CarFormPageState extends State<CarFormPage> {
   Future<bool> _plateIsFree() async {
     final check = await runWithProgress<CarExistence>(
       context,
-      () => CarsApi(context.read<ApiClient>()).checkExistence(car: _plateJson()),
+      () =>
+          CarsApi(context.read<ApiClient>()).checkExistence(car: _plateJson()),
     );
     if (check == null || !mounted) {
       return false;
@@ -216,14 +217,10 @@ class _CarFormPageState extends State<CarFormPage> {
   /// Runs [action] behind a progress dialog and closes the form on success.
   Future<void> _submit(Future<void> Function(CarsApi cars) action) async {
     final cars = CarsApi(context.read<ApiClient>());
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        await action(cars);
-        return true;
-      },
-      successMessage: 'บันทึกข้อมูลรถยนต์เรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      await action(cars);
+      return true;
+    }, successMessage: 'บันทึกข้อมูลรถยนต์เรียบร้อยแล้ว');
     if (ok == true && mounted) {
       Navigator.of(context).pop(true);
     }
@@ -234,8 +231,7 @@ class _CarFormPageState extends State<CarFormPage> {
   Future<void> _onExistingCar(Car existing, Customer? matchedCustomer) async {
     // Target owner: the picked / fixed customer, or the existing customer
     // that matches the "new customer" input.
-    final Customer? target =
-        _creatingCustomer ? matchedCustomer : _owner;
+    final Customer? target = _creatingCustomer ? matchedCustomer : _owner;
     final currentOwner = existing.customer?.fullName ?? 'ไม่ระบุเจ้าของ';
     final carText = '${existing.plateWithProvince} (${existing.brandModel})';
 
@@ -251,7 +247,8 @@ class _CarFormPageState extends State<CarFormPage> {
     final transfer = await AppDialogs.confirm(
       context,
       title: 'ข้อมูลรถยนต์ซ้ำ',
-      message: 'รถทะเบียน $carText มีในระบบแล้ว '
+      message:
+          'รถทะเบียน $carText มีในระบบแล้ว '
           'โดยเป็นของ "$currentOwner"\n\n'
           'ต้องการเปลี่ยนเจ้าของรถคันนี้เป็น "$targetName" หรือไม่?',
     );
@@ -289,16 +286,18 @@ class _CarFormPageState extends State<CarFormPage> {
   }
 
   String _newCustomerName() {
-    final n = '${_newCustomer.name.text.trim()} '
-            '${_newCustomer.surname.text.trim()}'
-        .trim();
+    final n =
+        '${_newCustomer.name.text.trim()} '
+                '${_newCustomer.surname.text.trim()}'
+            .trim();
     return n.isEmpty ? 'ลูกค้าใหม่' : n;
   }
 
   /// A customer with the same name + surname or ID number exists. Same ID
   /// number means the same person, so creating a duplicate is not offered.
   Future<_CustomerChoice?> _askExistingCustomer(Customer existing) {
-    final sameId = existing.idNumber != null &&
+    final sameId =
+        existing.idNumber != null &&
         existing.idNumber == _newCustomer.idNumberValue;
     final detail = [
       existing.fullName,
@@ -356,14 +355,10 @@ class _CarFormPageState extends State<CarFormPage> {
     if (!confirmed || !mounted) {
       return;
     }
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        await CarsApi(context.read<ApiClient>()).remove(car.id);
-        return true;
-      },
-      successMessage: 'ลบข้อมูลรถยนต์เรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      await CarsApi(context.read<ApiClient>()).remove(car.id);
+      return true;
+    }, successMessage: 'ลบข้อมูลรถยนต์เรียบร้อยแล้ว');
     if (ok == true && mounted) {
       Navigator.of(context).pop(true);
     }
@@ -588,8 +583,7 @@ class _CarFormPageState extends State<CarFormPage> {
           hintText: 'เช่น ขาว, ดำ, เทา',
         ),
         textInputAction: TextInputAction.next,
-        validator: (v) =>
-            (v ?? '').trim().isEmpty ? 'กรุณากรอกสีรถยนต์' : null,
+        validator: (v) => (v ?? '').trim().isEmpty ? 'กรุณากรอกสีรถยนต์' : null,
       ),
       _gap,
       TextFormField(
@@ -619,10 +613,9 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -74,19 +74,19 @@ class InvoiceLine {
       : '${discount.toStringAsFixed(2)}${isDiscount == DiscountKind.baht ? ' ฿' : ' %'}';
 
   double get discountAmount => invoiceLineDiscount(
-        quantity: quantity,
-        pricePerUnit: pricePerUnit,
-        discount: discount,
-        isDiscount: isDiscount,
-      );
+    quantity: quantity,
+    pricePerUnit: pricePerUnit,
+    discount: discount,
+    isDiscount: isDiscount,
+  );
 
   /// `NumOfUse * PricePerUnit - discount` (service fee excluded).
   double get total => invoiceLineTotal(
-        quantity: quantity,
-        pricePerUnit: pricePerUnit,
-        discount: discount,
-        isDiscount: isDiscount,
-      );
+    quantity: quantity,
+    pricePerUnit: pricePerUnit,
+    discount: discount,
+    isDiscount: isDiscount,
+  );
 }
 
 /// `RepairDetail` with its parts.
@@ -99,11 +99,11 @@ class InvoiceGroup {
   });
 
   factory InvoiceGroup.fromJson(Map<String, dynamic> j) => InvoiceGroup(
-        id: asInt(j['RepairDetailID']) ?? 0,
-        repairCategory: asString(asMap(j['repairCategory'])?['RepairCategory']),
-        presetName: asString(asMap(j['preset'])?['Preset']),
-        lines: asMapList(j['repairParts']).map(InvoiceLine.fromJson).toList(),
-      );
+    id: asInt(j['RepairDetailID']) ?? 0,
+    repairCategory: asString(asMap(j['repairCategory'])?['RepairCategory']),
+    presetName: asString(asMap(j['preset'])?['Preset']),
+    lines: asMapList(j['repairParts']).map(InvoiceLine.fromJson).toList(),
+  );
 
   final int id;
   final String? repairCategory;
@@ -120,7 +120,11 @@ class InvoiceGroup {
 
 /// Invoice-level discount on the service fee (`feeDiscounts[0]`).
 class FeeDiscount {
-  const FeeDiscount({this.amount = 0, this.isDiscount = DiscountKind.baht, this.note});
+  const FeeDiscount({
+    this.amount = 0,
+    this.isDiscount = DiscountKind.baht,
+    this.note,
+  });
 
   factory FeeDiscount.fromJson(Map<String, dynamic>? j) => j == null
       ? const FeeDiscount()
@@ -187,9 +191,9 @@ class Invoice {
       car: car,
       customer: asMap(car?['customer']) ?? asMap(quotation?['customer']),
       address: asMap(quotation?['address']),
-      groups: asMapList(repair?['repairDetails'])
-          .map(InvoiceGroup.fromJson)
-          .toList(),
+      groups: asMapList(
+        repair?['repairDetails'],
+      ).map(InvoiceGroup.fromJson).toList(),
       feeDiscount: FeeDiscount.fromJson(
         asMapList(j['feeDiscounts']).isEmpty
             ? null
@@ -238,10 +242,10 @@ class Invoice {
   double get totalServiceFee => lines.fold(0, (a, l) => a + l.serviceFee);
 
   double get feeDiscountAmount => feeDiscountValue(
-        totalFee: totalServiceFee,
-        amount: feeDiscount.amount,
-        isDiscount: feeDiscount.isDiscount,
-      );
+    totalFee: totalServiceFee,
+    amount: feeDiscount.amount,
+    isDiscount: feeDiscount.isDiscount,
+  );
 
   /// Fee groups printed as "(ค่าบริการ) preset-name" rows (only fees > 0).
   Map<String, double> get feesByPreset {
@@ -257,8 +261,8 @@ class Invoice {
   double get itemsSum => isDeposit
       ? depositItemsSum(amount: amount ?? 0, isVat: isVat, vatType: vatType)
       : lines.fold<double>(0, (a, l) => a + l.total) +
-          totalServiceFee -
-          feeDiscountAmount;
+            totalServiceFee -
+            feeDiscountAmount;
 
   /// Totals exactly as `pdfCreateInvoice` / `pdfCreateDepositInvoice`
   /// print them. Pass the quotation's cash pledges (`GET /cash-pledge/
@@ -293,9 +297,9 @@ class Invoice {
   }
 
   String get brandModel => [
-        asString(asMap(car?['brand'])?['Brand']),
-        asString(asMap(car?['model'])?['Model']),
-      ].whereType<String>().join(' ');
+    asString(asMap(car?['brand'])?['Brand']),
+    asString(asMap(car?['model'])?['Model']),
+  ].whereType<String>().join(' ');
 
   String get typeLabel => isDeposit ? 'ใบแจ้งหนี้ (เงินมัดจำ)' : 'ใบแจ้งหนี้';
 

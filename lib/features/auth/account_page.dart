@@ -88,13 +88,10 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
     }
     final auth = context.read<AuthProvider>();
     final navigator = Navigator.of(context);
-    final ok = await runWithProgress(
-      context,
-      () async {
-        await auth.changePassword(_old.text, _new.text);
-        return true;
-      },
-    );
+    final ok = await runWithProgress(context, () async {
+      await auth.changePassword(_old.text, _new.text);
+      return true;
+    });
     if (ok == true && mounted) {
       navigator.pop();
       await AppDialogs.success(context, 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
@@ -127,8 +124,9 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
             TextFormField(
               controller: _confirm,
               obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'ยืนยันรหัสผ่านใหม่'),
+              decoration: const InputDecoration(
+                labelText: 'ยืนยันรหัสผ่านใหม่',
+              ),
               validator: (v) => v != _new.text ? 'รหัสผ่านไม่ตรงกัน' : null,
             ),
           ],

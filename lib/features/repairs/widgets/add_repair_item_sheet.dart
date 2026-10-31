@@ -77,7 +77,9 @@ class _AddRepairItemPageState extends State<_AddRepairItemPage> {
   }
 
   void _retry() {
-    setState(() => _future = _load());
+    setState(() {
+      _future = _load();
+    });
   }
 
   List<Preset> _presetsFor(List<Preset> all) {

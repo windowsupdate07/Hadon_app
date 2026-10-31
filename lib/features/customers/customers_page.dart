@@ -28,7 +28,9 @@ class _CustomersPageState extends State<CustomersPage> {
 
   Future<void> _refresh() async {
     final future = _api.findAll();
-    setState(() => _future = future);
+    setState(() {
+      _future = future;
+    });
     try {
       await future;
     } catch (_) {

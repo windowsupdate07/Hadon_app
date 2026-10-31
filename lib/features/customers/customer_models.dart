@@ -163,17 +163,17 @@ class Customer {
 
   /// Same customer with another car list (e.g. from `/cars/by-customer`).
   Customer withCars(List<Car> cars) => Customer(
-        id: id,
-        titleId: titleId,
-        title: title,
-        name: name,
-        surname: surname,
-        idNumber: idNumber,
-        tel: tel,
-        ratingColor: ratingColor,
-        addresses: addresses,
-        cars: cars,
-      );
+    id: id,
+    titleId: titleId,
+    title: title,
+    name: name,
+    surname: surname,
+    idNumber: idNumber,
+    tel: tel,
+    ratingColor: ratingColor,
+    addresses: addresses,
+    cars: cars,
+  );
 
   /// "นายสมชาย ใจดี" (Thai titles are written without a space).
   String get fullName {
@@ -193,13 +193,13 @@ class Customer {
 
   /// Body for `POST /customers` and `PUT /customers/:id`.
   Map<String, dynamic> toJson() => {
-        'CustomerTitleID': titleId,
-        'CustomerName': name,
-        'CustomerSurname': surname,
-        'IDNumber': idNumber,
-        'CustomerTel': tel,
-        'RatingColor': rating.value,
-      };
+    'CustomerTitleID': titleId,
+    'CustomerName': name,
+    'CustomerSurname': surname,
+    'IDNumber': idNumber,
+    'CustomerTel': tel,
+    'RatingColor': rating.value,
+  };
 
   /// Search like the web table: id, name, ID number, phone and the
   /// customer's cars (plate, province, brand / model, colour, VIN, engine no).

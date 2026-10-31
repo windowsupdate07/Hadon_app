@@ -54,7 +54,9 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
 
   Future<void> _refresh() async {
     final future = _load();
-    setState(() => _future = future);
+    setState(() {
+      _future = future;
+    });
     try {
       await future;
     } catch (_) {
@@ -89,14 +91,10 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     if (!confirmed || !mounted) {
       return;
     }
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        await _api.remove(c.id);
-        return true;
-      },
-      successMessage: 'ลบข้อมูลลูกค้าเรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      await _api.remove(c.id);
+      return true;
+    }, successMessage: 'ลบข้อมูลลูกค้าเรียบร้อยแล้ว');
     if (ok == true && mounted) {
       context.pop();
     }
@@ -113,18 +111,14 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       return;
     }
     final previousDefault = c.defaultAddress;
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        // The server always makes the new address the default one.
-        await _api.addAddress(c.id, res.json);
-        if (!res.makeDefault && previousDefault != null) {
-          await _api.setDefaultAddress(previousDefault.id);
-        }
-        return true;
-      },
-      successMessage: 'เพิ่มที่อยู่เรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      // The server always makes the new address the default one.
+      await _api.addAddress(c.id, res.json);
+      if (!res.makeDefault && previousDefault != null) {
+        await _api.setDefaultAddress(previousDefault.id);
+      }
+      return true;
+    }, successMessage: 'เพิ่มที่อยู่เรียบร้อยแล้ว');
     if (ok == true && mounted) {
       _refresh();
     }
@@ -135,28 +129,20 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
     if (res == null || !mounted) {
       return;
     }
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        await _api.updateAddress(a.id, res.json);
-        return true;
-      },
-      successMessage: 'แก้ไขที่อยู่เรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      await _api.updateAddress(a.id, res.json);
+      return true;
+    }, successMessage: 'แก้ไขที่อยู่เรียบร้อยแล้ว');
     if (ok == true && mounted) {
       _refresh();
     }
   }
 
   Future<void> _setDefault(Address a) async {
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        await _api.setDefaultAddress(a.id);
-        return true;
-      },
-      successMessage: 'ตั้งเป็นที่อยู่หลักเรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      await _api.setDefaultAddress(a.id);
+      return true;
+    }, successMessage: 'ตั้งเป็นที่อยู่หลักเรียบร้อยแล้ว');
     if (ok == true && mounted) {
       _refresh();
     }
@@ -168,18 +154,14 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
       return;
     }
     final others = c.addresses.where((e) => e.id != a.id).toList();
-    final ok = await runWithProgress<bool>(
-      context,
-      () async {
-        await _api.removeAddress(a.id);
-        // Keep one default address (used by invoices) when possible.
-        if (a.isDefault && others.isNotEmpty) {
-          await _api.setDefaultAddress(others.first.id);
-        }
-        return true;
-      },
-      successMessage: 'ลบที่อยู่เรียบร้อยแล้ว',
-    );
+    final ok = await runWithProgress<bool>(context, () async {
+      await _api.removeAddress(a.id);
+      // Keep one default address (used by invoices) when possible.
+      if (a.isDefault && others.isNotEmpty) {
+        await _api.setDefaultAddress(others.first.id);
+      }
+      return true;
+    }, successMessage: 'ลบที่อยู่เรียบร้อยแล้ว');
     if (ok == true && mounted) {
       _refresh();
     }
@@ -314,8 +296,14 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
                         const PopupMenuItem(
                           value: 'delete',
                           child: ListTile(
-                            leading: Icon(Icons.delete_outline, color: Colors.red),
-                            title: Text('ลบ', style: TextStyle(color: Colors.red)),
+                            leading: Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            title: Text(
+                              'ลบ',
+                              style: TextStyle(color: Colors.red),
+                            ),
                           ),
                         ),
                       ],
@@ -417,7 +405,11 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

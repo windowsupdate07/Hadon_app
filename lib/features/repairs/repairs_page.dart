@@ -53,7 +53,9 @@ class _RepairsPageState extends State<RepairsPage> {
 
   Future<void> _refresh() async {
     final future = _load();
-    setState(() => _future = future);
+    setState(() {
+      _future = future;
+    });
     try {
       await future;
     } catch (_) {

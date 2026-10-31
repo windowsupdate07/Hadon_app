@@ -182,18 +182,15 @@ class _AddQuotationItemPageState extends State<AddQuotationItemPage> {
         return;
       }
     }
-    final done = await runWithProgress(
-      context,
-      () async {
-        await widget.api.createDetailWithParts(
-          quotationId: widget.quotation.id,
-          repairCategoryId: _category!.id,
-          presetId: _preset!.id,
-          parts: _parts,
-        );
-        return true;
-      },
-    );
+    final done = await runWithProgress(context, () async {
+      await widget.api.createDetailWithParts(
+        quotationId: widget.quotation.id,
+        repairCategoryId: _category!.id,
+        presetId: _preset!.id,
+        parts: _parts,
+      );
+      return true;
+    });
     if (done == true && mounted) {
       Navigator.of(context).pop(true);
     }
@@ -205,9 +202,7 @@ class _AddQuotationItemPageState extends State<AddQuotationItemPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('เพิ่มรายการซ่อม'),
-        actions: [
-          TextButton(onPressed: _save, child: const Text('บันทึก')),
-        ],
+        actions: [TextButton(onPressed: _save, child: const Text('บันทึก'))],
       ),
       body: FutureBuilder<_InitData>(
         future: _future,
@@ -218,7 +213,9 @@ class _AddQuotationItemPageState extends State<AddQuotationItemPage> {
           if (snap.hasError) {
             return ErrorView(
               error: snap.error!,
-              onRetry: () => setState(() => _future = _loadInit()),
+              onRetry: () => setState(() {
+                _future = _loadInit();
+              }),
             );
           }
           final init = snap.data!;
@@ -235,8 +232,9 @@ class _AddQuotationItemPageState extends State<AddQuotationItemPage> {
                       DropdownButtonFormField<Option>(
                         initialValue: _category,
                         isExpanded: true,
-                        decoration:
-                            const InputDecoration(labelText: 'ประเภทงานซ่อม *'),
+                        decoration: const InputDecoration(
+                          labelText: 'ประเภทงานซ่อม *',
+                        ),
                         items: [
                           for (final c in init.categories)
                             DropdownMenuItem(value: c, child: Text(c.label)),
@@ -298,7 +296,11 @@ class _AddQuotationItemPageState extends State<AddQuotationItemPage> {
                                 ),
                               ),
                             const Divider(),
-                            InfoRow('รวม', '${formatMoney(total)} บาท', bold: true),
+                            InfoRow(
+                              'รวม',
+                              '${formatMoney(total)} บาท',
+                              bold: true,
+                            ),
                           ],
                         ),
                 ),

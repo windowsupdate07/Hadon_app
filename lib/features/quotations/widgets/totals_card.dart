@@ -46,7 +46,9 @@ class TotalsCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: t.vatType == VatType.exclude ? Colors.red : Colors.green,
+                  color: t.vatType == VatType.exclude
+                      ? Colors.red
+                      : Colors.green,
                 ),
               ),
             ),
@@ -146,12 +148,19 @@ class VatControls extends StatelessWidget {
             padding: const EdgeInsets.only(left: 8, bottom: 4),
             child: SegmentedButton<int>(
               segments: const [
-                ButtonSegment(value: VatType.include, label: Text('Include VAT')),
-                ButtonSegment(value: VatType.exclude, label: Text('Exclude VAT')),
+                ButtonSegment(
+                  value: VatType.include,
+                  label: Text('Include VAT'),
+                ),
+                ButtonSegment(
+                  value: VatType.exclude,
+                  label: Text('Exclude VAT'),
+                ),
               ],
               selected: {vatType},
-              onSelectionChanged:
-                  change == null ? null : (s) => change(true, s.first),
+              onSelectionChanged: change == null
+                  ? null
+                  : (s) => change(true, s.first),
             ),
           ),
       ],

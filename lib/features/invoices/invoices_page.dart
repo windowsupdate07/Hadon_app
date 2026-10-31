@@ -51,7 +51,9 @@ class _InvoicesPageState extends State<InvoicesPage> {
 
   Future<void> _refresh() async {
     final f = _load();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
     try {
       await f;
     } catch (_) {
@@ -62,9 +64,9 @@ class _InvoicesPageState extends State<InvoicesPage> {
   List<Invoice> _searched(List<Invoice> all) =>
       all.where((i) => _query.isEmpty || i.matches(_query)).toList();
 
-  List<Invoice> _filtered(List<Invoice> all) => _searched(all)
-      .where((i) => _status == null || i.statusId == _status)
-      .toList();
+  List<Invoice> _filtered(List<Invoice> all) => _searched(
+    all,
+  ).where((i) => _status == null || i.statusId == _status).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +173,9 @@ class _InvoiceTile extends StatelessWidget {
   /// pledge deduction (the list response has no pledges).
   static String _amountText(Invoice inv) {
     final amount = inv.amount;
-    if (inv.statusId != InvoiceStatus.pendingConfirm && amount != null && amount > 0) {
+    if (inv.statusId != InvoiceStatus.pendingConfirm &&
+        amount != null &&
+        amount > 0) {
       return '${formatMoney(amount)} บาท';
     }
     if (inv.isDeposit) {
@@ -209,7 +213,10 @@ class _InvoiceTile extends StatelessWidget {
                 inv.customerDisplayName.isEmpty ? '-' : inv.customerDisplayName,
               ),
               Text(
-                [inv.plate, inv.brandModel].where((s) => s.isNotEmpty).join(' · '),
+                [
+                  inv.plate,
+                  inv.brandModel,
+                ].where((s) => s.isNotEmpty).join(' · '),
                 style: const TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 4),
