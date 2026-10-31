@@ -26,11 +26,14 @@ class PresetsApi {
   Future<void> update(int id, String name, int status) =>
       _api.put('/preset/$id', data: {'Preset': name, 'Status': status});
 
-  /// `DELETE /preset/:id` soft-deletes the preset and the
-  /// Ref_Model_Category_Parts rows using it. Backend quirk: the preset is
-  /// destroyed outside the transaction, and when no ref rows exist the
-  /// endpoint answers `result:false "Cannot delete Preset and Ref!."` even
-  /// though the preset is already gone. We therefore verify by reloading.
+  /// `DELETE /preset/:id` (deletePresetAndRefUsingPreset) soft-deletes the
+  /// preset and the Ref_Model_Category_Parts rows using it. Still buggy on
+  /// the current backend: the transaction is passed as a second argument to
+  /// `destroy()` and ignored, so both deletes auto-commit, and when the
+  /// preset has no ref rows the endpoint answers
+  /// `result:false "Cannot delete Preset and Ref!."` although the preset is
+  /// already gone (an exception path references an undefined `err` and
+  /// never responds). We therefore verify by reloading.
   ///
   /// The endpoint does not touch PresetDetails, so the preset's detail rows
   /// are removed afterwards (best effort).
@@ -60,6 +63,7 @@ class PresetsApi {
     }
   }
 
+  /// `POST /presetDetails` (crud.create).
   Future<void> addDetail(int presetId, int partId, int numOfUse) => _api.post(
     '/presetDetails',
     data: {'PresetID': presetId, 'PartID': partId, 'NumOfUse': numOfUse},

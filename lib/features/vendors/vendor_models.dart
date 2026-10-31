@@ -1,4 +1,29 @@
+import 'package:flutter/material.dart';
+
 import '../../core/utils/json.dart';
+
+/// `Vendors.RatingColor` values used by the web (Vuetify colour names).
+enum VendorRating {
+  green('green', 'สีเขียว', Colors.green),
+  warning('warning', 'สีเหลือง', Colors.amber),
+  error('error', 'สีแดง', Colors.red);
+
+  const VendorRating(this.value, this.label, this.color);
+
+  final String value;
+  final String label;
+  final Color color;
+
+  /// Unknown / null values fall back to green (the column default).
+  static VendorRating parse(String? v) {
+    for (final r in values) {
+      if (r.value == v) {
+        return r;
+      }
+    }
+    return green;
+  }
+}
 
 /// Vendor address (`Addresses` row with AddressTypeID = 2, OwnerID = VendorID).
 class VendorAddress {
@@ -61,8 +86,8 @@ class VendorAddress {
   }
 }
 
-/// `Vendors` row as returned by `GET /vendors` (with `vendorType` and
-/// `addresses` includes).
+/// `Vendors` row as returned by `GET /vendors` and `GET /vendors/:id`
+/// (with `vendorType` and `addresses` [AddressTypeID 2] includes).
 class Vendor {
   const Vendor({
     required this.id,
@@ -71,6 +96,7 @@ class Vendor {
     this.typeName,
     this.idNumber,
     this.tel,
+    this.rating = VendorRating.green,
     this.addresses = const [],
   });
 
@@ -83,6 +109,7 @@ class Vendor {
       typeName: asString(type?['VendorType']),
       idNumber: asString(j['IDNumber']),
       tel: asString(j['VendorTel']),
+      rating: VendorRating.parse(asString(j['RatingColor'])),
       addresses: asMapList(
         j['addresses'] ?? j['Addresses'],
       ).map(VendorAddress.fromJson).toList(),
@@ -95,6 +122,7 @@ class Vendor {
   final String? typeName;
   final String? idNumber;
   final String? tel;
+  final VendorRating rating;
   final List<VendorAddress> addresses;
 
   /// Default address, else the first one.

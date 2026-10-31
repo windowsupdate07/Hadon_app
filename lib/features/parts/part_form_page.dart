@@ -34,6 +34,9 @@ class _PartFormPageState extends State<PartFormPage> {
 
   bool get _isEdit => widget.part != null;
 
+  /// Seeded UnitID 1; the web form defaults to it too.
+  static const _defaultUnitId = 1;
+
   @override
   void initState() {
     super.initState();
@@ -41,14 +44,12 @@ class _PartFormPageState extends State<PartFormPage> {
     _number = TextEditingController(text: p?.partNumber ?? '');
     _nameTh = TextEditingController(text: p?.nameTh ?? '');
     _nameEn = TextEditingController(text: p?.nameEn ?? '');
-    _amount = TextEditingController(
-      text: p == null ? '0' : p.amount.round().toString(),
-    );
+    _amount = TextEditingController(text: p == null ? '0' : '${p.stock}');
     _price = TextEditingController(
       text: p == null ? '' : _plain(p.pricePerUnit),
     );
     _fee = TextEditingController(text: p == null ? '0' : _plain(p.serviceFee));
-    _unitId = p?.unitId;
+    _unitId = p == null ? _defaultUnitId : p.unitId;
   }
 
   @override
@@ -95,22 +96,43 @@ class _PartFormPageState extends State<PartFormPage> {
       }
     }
 
+    final api = PartsApi(context.read<ApiClient>());
+    final amount = int.parse(_amount.text.trim());
     final nameEn = _nameEn.text.trim();
     final body = <String, dynamic>{
       'PartNumber': number,
       'PartName_th': _nameTh.text.trim(),
       'PartName_en': nameEn.isEmpty ? null : nameEn,
-      // PartAmount is an INTEGER column.
-      'PartAmount': int.parse(_amount.text.trim()),
       'PricePerUnit': double.parse(_price.text.trim()),
       'ServiceFee': double.parse(_fee.text.trim()),
       'UnitID': _unitId,
     };
 
-    final api = PartsApi(context.read<ApiClient>());
+    final part = widget.part;
+    if (part == null) {
+      body['PartAmount'] = amount;
+    } else if (amount != part.stock) {
+      // Stock also moves through receiving / sales / repairs. Only send
+      // PartAmount when the user changed it, and check it against the
+      // server first so a concurrent movement is not silently overwritten.
+      final adjusted = await _confirmStockAdjustment(api, part, amount);
+      if (!adjusted || !mounted) {
+        return;
+      }
+      body['PartAmount'] = amount;
+    } else {
+      final ok = await AppDialogs.confirm(
+        context,
+        message: 'ท่านต้องการแก้ไขข้อมูลสินค้า ใช่หรือไม่?',
+      );
+      if (!ok || !mounted) {
+        return;
+      }
+    }
+
     final ok = await runWithProgress(context, () async {
-      if (_isEdit) {
-        await api.update(widget.part!.id, body);
+      if (part != null) {
+        await api.update(part.id, body);
       } else {
         await api.create(body);
       }
@@ -119,6 +141,31 @@ class _PartFormPageState extends State<PartFormPage> {
     if (ok == true && mounted) {
       Navigator.of(context).pop(true);
     }
+  }
+
+  /// Re-reads the part and asks the user to confirm the manual stock change.
+  Future<bool> _confirmStockAdjustment(
+    PartsApi api,
+    Part part,
+    int amount,
+  ) async {
+    final current = await runWithProgress(context, () => api.findOne(part.id));
+    if (current == null || !mounted) {
+      return false;
+    }
+    final unit = current.unitName ?? '';
+    final changed = current.stock != part.stock;
+    return AppDialogs.confirm(
+      context,
+      title: 'ยืนยันการปรับจำนวนคงเหลือ',
+      message: [
+        if (changed)
+          'จำนวนคงเหลือในระบบถูกเปลี่ยนเป็น ${current.stock} $unit '
+              'ระหว่างที่แก้ไข (เดิม ${part.stock})',
+        'ปรับจำนวนคงเหลือจาก ${current.stock} เป็น $amount $unit ใช่หรือไม่?',
+        'ปกติจำนวนคงเหลือจะถูกปรับอัตโนมัติจากการรับเข้า/ขาย/ใช้ในงานซ่อม',
+      ].join('\n\n'),
+    );
   }
 
   @override
@@ -167,14 +214,10 @@ class _PartFormPageState extends State<PartFormPage> {
                     decoration: const InputDecoration(
                       labelText: 'จำนวนคงเหลือ *',
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
-                    ],
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     validator: (v) => int.tryParse((v ?? '').trim()) == null
-                        ? 'กรุณากรอกจำนวนเต็ม'
+                        ? 'กรุณากรอกจำนวนเต็มตั้งแต่ 0 ขึ้นไป'
                         : null,
                   ),
                 ),
@@ -182,6 +225,7 @@ class _PartFormPageState extends State<PartFormPage> {
                 Expanded(
                   child: LookupDropdown(
                     label: 'หน่วย',
+                    required: true,
                     load: lookups.units,
                     value: _unitId,
                     onChanged: (o) => setState(() => _unitId = o?.id),

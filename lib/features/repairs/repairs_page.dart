@@ -12,6 +12,7 @@ import '../../core/widgets/state_views.dart';
 import '../../layouts/app_scaffold.dart';
 import 'repair_models.dart';
 import 'repairs_api.dart';
+import 'widgets/repair_header_card.dart';
 
 class RepairsPage extends StatefulWidget {
   const RepairsPage({super.key});
@@ -81,7 +82,7 @@ class _RepairsPageState extends State<RepairsPage> {
       body: Column(
         children: [
           SearchField(
-            hint: 'ค้นหาทะเบียนรถ / ชื่อลูกค้า / เลขที่งานซ่อม',
+            hint: 'ค้นหาทะเบียนรถ / ชื่อลูกค้า / เลขที่งานซ่อม / ใบเสนอราคา',
             onChanged: (v) => setState(() {
               _query = v;
               _page = 0;
@@ -220,8 +221,32 @@ class _RepairTile extends StatelessWidget {
           Row(
             children: [
               Text(formatThaiDate(r.date)),
+              if (r.receiveType == ReceiveType.appointment &&
+                  r.receiveAppointmentDate != null) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.event, size: 14, color: Colors.blue),
+                const SizedBox(width: 2),
+                Flexible(
+                  child: Text(
+                    'นัดรับ ${formatThaiDateTime(r.receiveAppointmentDate)}',
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ] else if (r.receiveType == ReceiveType.wait) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'รอรับ',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 6),
               const Spacer(),
-              StatusChip(WorkStatus.info(r.workStatusId)),
+              StatusChip(workStatusInfo(r)),
             ],
           ),
         ],

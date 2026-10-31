@@ -13,9 +13,15 @@ import 'preset_dialogs.dart';
 import 'preset_models.dart';
 import 'presets_api.dart';
 
+/// `Preset.Status` (manual on/off switch).
 StatusInfo presetStatusInfo(Preset p) => p.isActive
-    ? const StatusInfo('ใช้งาน', Colors.green)
-    : const StatusInfo('ไม่ใช้งาน', Colors.grey);
+    ? const StatusInfo('เปิดใช้งาน', Colors.blue)
+    : const StatusInfo('ปิดใช้งาน', Colors.grey);
+
+/// Stock readiness, as shown by the web preset table.
+StatusInfo presetStockInfo(Preset p) => p.isStockReady
+    ? const StatusInfo('พร้อมใช้งาน', Colors.green)
+    : const StatusInfo('ไม่พร้อมใช้งาน', Colors.red);
 
 /// Preset header + its parts. Pops `true` when the preset was deleted.
 class PresetDetailPage extends StatefulWidget {
@@ -84,7 +90,8 @@ class _PresetDetailPageState extends State<PresetDetailPage> {
 
   Future<void> _delete(Preset preset) async {
     final refs = preset.refCount > 0
-        ? '\nพรีเซ็ตนี้ถูกอ้างอิงอยู่ ${preset.refCount} รายการ ซึ่งจะถูกลบไปด้วย'
+        ? '\n\nพรีเซ็ตจะถูกนำออกจากกลุ่มงานที่ใช้อยู่ปัจจุบัน '
+              '${preset.refCount} กลุ่มงานด้วย'
         : '';
     final ok = await AppDialogs.confirm(
       context,
@@ -108,12 +115,8 @@ class _PresetDetailPageState extends State<PresetDetailPage> {
     if (picked == null || !mounted) {
       return;
     }
-    final qty = picked.quantity;
-    if (qty != qty.roundToDouble() || qty <= 0) {
-      await AppDialogs.warn(context, 'จำนวนที่ใช้ต้องเป็นจำนวนเต็ม');
-      return;
-    }
-    final n = qty.round();
+    // The picker only returns whole numbers > 0 (NumOfUse is INTEGER).
+    final n = picked.quantity.round();
     PresetDetail? existing;
     for (final d in preset.details) {
       if (d.partId == picked.part.id) {
@@ -212,6 +215,7 @@ class _PresetDetailPageState extends State<PresetDetailPage> {
   }
 
   Widget _buildBody(Preset p) {
+    final short = p.shortDetails;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 6, bottom: 88),
@@ -220,10 +224,27 @@ class _PresetDetailPageState extends State<PresetDetailPage> {
           title: p.name,
           trailing: StatusChip(presetStatusInfo(p)),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 120,
+                    child: Text('สต็อก', style: TextStyle(color: Colors.grey)),
+                  ),
+                  StatusChip(presetStockInfo(p)),
+                ],
+              ),
+              if (p.details.isNotEmpty && short.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'อะไหล่ไม่พอ ${short.length} รายการ',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
               InfoRow('จำนวนอะไหล่', '${p.details.length} รายการ'),
               InfoRow('ราคารวมโดยประมาณ', '${formatMoney(p.totalPrice)} บาท'),
-              InfoRow('ใช้ในการอ้างอิง', '${p.refCount} รายการ'),
             ],
           ),
         ),
@@ -236,12 +257,38 @@ class _PresetDetailPageState extends State<PresetDetailPage> {
                 )
               : Column(children: [for (final d in p.details) _detailTile(d)]),
         ),
+        SectionCard(
+          title: 'กลุ่มงานที่ใช้พรีเซ็ต (${p.refCount})',
+          child: p.refs.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'ยังไม่มีกลุ่มงานที่ใช้พรีเซ็ตนี้',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              : Column(
+                  children: [
+                    for (final r in p.refs)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        leading: const Icon(Icons.directions_car_outlined),
+                        title: Text(r.repairCategory ?? '-'),
+                        subtitle: Text(
+                          [r.vehicle, ?r.partCategory].join(' · '),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
       ],
     );
   }
 
   Widget _detailTile(PresetDetail d) {
     final part = d.part;
+    final enough = d.hasEnoughStock;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       onTap: () => _editQty(d),
@@ -251,10 +298,27 @@ class _PresetDetailPageState extends State<PresetDetailPage> {
       ),
       subtitle: part == null
           ? null
-          : Text(
-              '${part.partNumber ?? '-'} · '
-              '${formatMoney(part.pricePerUnit)} บาท/หน่วย',
+          : Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text:
+                        '${part.partNumber ?? '-'} · '
+                        '${formatMoney(part.pricePerUnit)} บาท/หน่วย\n',
+                  ),
+                  TextSpan(
+                    text:
+                        'คงเหลือ ${part.stock}'
+                        '${enough ? '' : ' (ไม่พอ)'}',
+                    style: TextStyle(
+                      color: enough ? Colors.green.shade700 : Colors.red,
+                      fontWeight: enough ? null : FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
+      isThreeLine: part != null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

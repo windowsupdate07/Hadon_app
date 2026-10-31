@@ -6,11 +6,13 @@ import '../../core/data/lookups.dart';
 import '../../core/network/api_client.dart';
 import '../../core/widgets/app_dialogs.dart';
 import '../parts/lookup_dropdown.dart';
+import 'vendor_address_fields.dart';
 import 'vendor_models.dart';
 import 'vendors_api.dart';
 
-/// Create (vendor == null) or edit a vendor and its address.
-/// Pops `true` after a successful save.
+/// Create (vendor == null) or edit a vendor. On create the first address is
+/// entered here (required by `POST /vendors`); afterwards addresses are
+/// managed on the vendor detail page. Pops `true` after a successful save.
 class VendorFormPage extends StatefulWidget {
   const VendorFormPage({super.key, this.vendor});
 
@@ -25,13 +27,9 @@ class _VendorFormPageState extends State<VendorFormPage> {
   late final TextEditingController _name;
   late final TextEditingController _idNumber;
   late final TextEditingController _tel;
-  late final TextEditingController _line1;
-  late final TextEditingController _line2;
+  final _address = VendorAddressInput();
   int? _typeId;
-  int? _provinceId;
-  int? _districtId;
-  int? _subDistrictId;
-  String? _zipcode;
+  late VendorRating _rating;
 
   bool get _isEdit => widget.vendor != null;
 
@@ -39,17 +37,11 @@ class _VendorFormPageState extends State<VendorFormPage> {
   void initState() {
     super.initState();
     final v = widget.vendor;
-    final a = v?.address;
     _name = TextEditingController(text: v?.name ?? '');
     _idNumber = TextEditingController(text: v?.idNumber ?? '');
     _tel = TextEditingController(text: v?.tel ?? '');
-    _line1 = TextEditingController(text: a?.line1 ?? '');
-    _line2 = TextEditingController(text: a?.line2 ?? '');
     _typeId = v?.typeId;
-    _provinceId = a?.provinceId;
-    _districtId = a?.districtId;
-    _subDistrictId = a?.subDistrictId;
-    _zipcode = a?.zipcode;
+    _rating = v?.rating ?? VendorRating.green;
   }
 
   @override
@@ -57,15 +49,9 @@ class _VendorFormPageState extends State<VendorFormPage> {
     _name.dispose();
     _idNumber.dispose();
     _tel.dispose();
-    _line1.dispose();
-    _line2.dispose();
+    _address.dispose();
     super.dispose();
   }
-
-  bool get _hasAddressInput =>
-      _line1.text.trim().isNotEmpty ||
-      _line2.text.trim().isNotEmpty ||
-      _provinceId != null;
 
   String? _nullIfEmpty(TextEditingController c) {
     final s = c.text.trim();
@@ -80,15 +66,20 @@ class _VendorFormPageState extends State<VendorFormPage> {
       await AppDialogs.warn(context, 'กรุณาเลือกประเภทคู่ค้า');
       return;
     }
-    final needAddress = _hasAddressInput || widget.vendor?.address != null;
-    if (needAddress &&
-        (_provinceId == null ||
-            _districtId == null ||
-            _subDistrictId == null)) {
+    if (!_isEdit && !_address.isComplete) {
       await AppDialogs.warn(
         context,
-        'กรุณาเลือกจังหวัด อำเภอ/เขต และตำบล/แขวง ให้ครบถ้วน',
+        'กรุณากรอกที่อยู่ และเลือกจังหวัด อำเภอ/เขต ตำบล/แขวง ให้ครบถ้วน',
       );
+      return;
+    }
+    final ok = await AppDialogs.confirm(
+      context,
+      message: _isEdit
+          ? 'ท่านต้องการแก้ไขข้อมูล ใช่หรือไม่?'
+          : 'ท่านต้องการเพิ่มข้อมูล ใช่หรือไม่?',
+    );
+    if (!ok || !mounted) {
       return;
     }
 
@@ -97,32 +88,19 @@ class _VendorFormPageState extends State<VendorFormPage> {
       'VendorTypeID': _typeId,
       'IDNumber': _nullIfEmpty(_idNumber),
       'VendorTel': _nullIfEmpty(_tel),
+      'RatingColor': _rating.value,
     };
-    final address = needAddress
-        ? <String, dynamic>{
-            'Line1': _nullIfEmpty(_line1),
-            'Line2': _nullIfEmpty(_line2),
-            'ProvinceID': _provinceId,
-            'DistrictID': _districtId,
-            'SubDistrictID': _subDistrictId,
-          }
-        : null;
 
     final api = VendorsApi(context.read<ApiClient>());
-    final ok = await runWithProgress(context, () async {
+    final saved = await runWithProgress(context, () async {
       if (_isEdit) {
-        await api.update(
-          widget.vendor!.id,
-          vendor,
-          addressId: widget.vendor!.address?.id,
-          address: address,
-        );
+        await api.update(widget.vendor!.id, vendor);
       } else {
-        await api.create(vendor, address);
+        await api.create(vendor, _address.toJson());
       }
       return true;
     });
-    if (ok == true && mounted) {
+    if (saved == true && mounted) {
       Navigator.of(context).pop(true);
     }
   }
@@ -131,8 +109,6 @@ class _VendorFormPageState extends State<VendorFormPage> {
   Widget build(BuildContext context) {
     final lookups = context.read<Lookups>();
     const gap = SizedBox(height: 12);
-    final provinceId = _provinceId;
-    final districtId = _districtId;
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'แก้ไขข้อมูลคู่ค้า' : 'เพิ่มคู่ค้า'),
@@ -193,86 +169,31 @@ class _VendorFormPageState extends State<VendorFormPage> {
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9\-+, ]')),
               ],
             ),
-            const SizedBox(height: 24),
-            Text('ที่อยู่', style: Theme.of(context).textTheme.titleMedium),
             gap,
-            TextFormField(
-              controller: _line1,
-              decoration: const InputDecoration(
-                labelText: 'ที่อยู่ (บ้านเลขที่ หมู่ อาคาร)',
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
-            gap,
-            TextFormField(
-              controller: _line2,
-              decoration: const InputDecoration(labelText: 'ถนน / ซอย'),
-              onChanged: (_) => setState(() {}),
-            ),
-            gap,
-            LookupDropdown(
-              label: 'จังหวัด',
-              load: lookups.provinces,
-              value: _provinceId,
-              onChanged: (o) => setState(() {
-                if (o?.id != _provinceId) {
-                  _provinceId = o?.id;
-                  _districtId = null;
-                  _subDistrictId = null;
-                  _zipcode = null;
-                }
-              }),
-            ),
-            gap,
-            LookupDropdown(
-              key: ValueKey('district-$provinceId'),
-              label: 'อำเภอ / เขต',
-              hint: provinceId == null ? 'กรุณาเลือกจังหวัดก่อน' : null,
-              load: provinceId == null
-                  ? null
-                  : () => lookups.districts(provinceId),
-              value: _districtId,
-              onChanged: (o) => setState(() {
-                if (o?.id != _districtId) {
-                  _districtId = o?.id;
-                  _subDistrictId = null;
-                  _zipcode = null;
-                }
-              }),
-            ),
-            gap,
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: LookupDropdown(
-                    key: ValueKey('sub-$provinceId-$districtId'),
-                    label: 'ตำบล / แขวง',
-                    hint: districtId == null ? 'กรุณาเลือกอำเภอก่อน' : null,
-                    load: districtId == null
-                        ? null
-                        : () => lookups.subDistricts(districtId),
-                    value: _subDistrictId,
-                    onChanged: (o) => setState(() {
-                      _subDistrictId = o?.id;
-                      _zipcode = o?.raw['Zipcode']?.toString();
-                    }),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'รหัสไปรษณีย์',
-                      enabled: false,
+            DropdownButtonFormField<VendorRating>(
+              initialValue: _rating,
+              decoration: const InputDecoration(labelText: 'ระดับ'),
+              items: [
+                for (final r in VendorRating.values)
+                  DropdownMenuItem(
+                    value: r,
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, size: 14, color: r.color),
+                        const SizedBox(width: 8),
+                        Text(r.label),
+                      ],
                     ),
-                    child: Text(_zipcode ?? '-'),
                   ),
-                ),
               ],
+              onChanged: (r) => setState(() => _rating = r ?? _rating),
             ),
+            if (!_isEdit) ...[
+              const SizedBox(height: 24),
+              Text('ที่อยู่', style: Theme.of(context).textTheme.titleMedium),
+              gap,
+              VendorAddressFields(data: _address),
+            ],
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _save,

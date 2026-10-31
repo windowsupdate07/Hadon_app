@@ -1,7 +1,11 @@
 import '../../core/network/api_client.dart';
 import '../../core/utils/json.dart';
 
-/// Spare part (`Parts` table). `PartAmount` is the quantity in stock.
+/// Spare part (`Parts` table, `GET /parts` with the `unit` include).
+///
+/// `PartAmount` is the quantity in stock (INTEGER column). It is changed by
+/// the server when parts are received (`/recievePart`), sold (`/salePart`),
+/// allocated to repairs or invoiced, so screens should treat it as live data.
 class Part {
   const Part({
     required this.id,
@@ -42,6 +46,15 @@ class Part {
 
   String get displayName => nameTh ?? nameEn ?? partNumber ?? '#$id';
 
+  /// Whole-number stock (every quantity column on the server is INTEGER).
+  int get stock => amount.round();
+
+  bool get isOutOfStock => amount <= 0;
+
+  /// Same rule the server applies before deducting stock
+  /// (`PartAmount >= requested`).
+  bool hasStockFor(num quantity) => amount >= quantity;
+
   Map<String, dynamic> toJson() => {
     'PartNumber': partNumber,
     'PartName_th': nameTh,
@@ -69,11 +82,15 @@ class PartsApi {
 
   Future<Part> findOne(int id) => _api.getOne('/parts/$id', Part.fromJson);
 
+  /// `POST /parts` (crud.create).
   Future<void> create(Map<String, dynamic> body) =>
       _api.post('/parts', data: body);
 
+  /// `PUT /parts/:id` (crud.update): only the keys present in [body] are
+  /// written, so leave `PartAmount` out unless the stock is being adjusted.
   Future<void> update(int id, Map<String, dynamic> body) =>
       _api.put('/parts/$id', data: body);
 
+  /// `DELETE /parts/:id` (crud.remove, soft delete).
   Future<void> remove(int id) => _api.delete('/parts/$id');
 }

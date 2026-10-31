@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/network/api_client.dart';
@@ -8,6 +9,9 @@ import '../../core/widgets/state_views.dart';
 import 'part_model.dart';
 
 /// Result of [showPartPicker]: the chosen part and quantity.
+///
+/// [quantity] is always a whole number (all quantity columns on the server
+/// are INTEGER); it stays a double for API compatibility.
 class PickedPart {
   const PickedPart(this.part, this.quantity);
 
@@ -16,7 +20,8 @@ class PickedPart {
 }
 
 /// Bottom sheet to search a part, then enter a quantity.
-/// When [checkStock] is true the quantity cannot exceed `PartAmount`.
+/// When [checkStock] is true out-of-stock parts are disabled and the
+/// quantity cannot exceed `PartAmount` (the server rejects it otherwise).
 Future<PickedPart?> showPartPicker(
   BuildContext context, {
   bool checkStock = true,
@@ -94,7 +99,7 @@ class _PartPickerSheetState extends State<_PartPickerSheet> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, i) {
                     final p = parts[i];
-                    final outOfStock = widget.checkStock && p.amount <= 0;
+                    final outOfStock = widget.checkStock && p.isOutOfStock;
                     return ListTile(
                       enabled: !outOfStock,
                       title: Text(p.displayName),
@@ -104,7 +109,7 @@ class _PartPickerSheetState extends State<_PartPickerSheet> {
                       trailing: Text(
                         'คงเหลือ ${formatNumber(p.amount)} ${p.unitName ?? ''}',
                         style: TextStyle(
-                          color: outOfStock ? Colors.red : Colors.green,
+                          color: p.isOutOfStock ? Colors.red : Colors.green,
                         ),
                       ),
                       onTap: () => _choose(p),
@@ -143,7 +148,7 @@ class _QuantityDialogState extends State<_QuantityDialog> {
   @override
   Widget build(BuildContext context) {
     final p = widget.part;
-    final qty = double.tryParse(_qty.text) ?? 0;
+    final qty = int.tryParse(_qty.text) ?? 0;
     return AlertDialog(
       title: Text(p.displayName),
       content: Form(
@@ -157,18 +162,17 @@ class _QuantityDialogState extends State<_QuantityDialog> {
             TextFormField(
               controller: _qty,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(labelText: 'จำนวน'),
               onChanged: (_) => setState(() {}),
               validator: (v) {
-                final n = double.tryParse(v ?? '');
+                final n = int.tryParse((v ?? '').trim());
                 if (n == null || n <= 0) {
-                  return 'กรุณากรอกจำนวนให้ถูกต้อง';
+                  return 'กรุณากรอกจำนวนเต็มมากกว่า 0';
                 }
-                if (widget.checkStock && n > p.amount) {
-                  return 'สินค้าคงเหลือไม่เพียงพอ';
+                if (widget.checkStock && !p.hasStockFor(n)) {
+                  return 'สินค้าคงเหลือไม่เพียงพอ (คงเหลือ ${p.stock})';
                 }
                 return null;
               },
@@ -186,7 +190,7 @@ class _QuantityDialogState extends State<_QuantityDialog> {
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              Navigator.of(context).pop(double.parse(_qty.text));
+              Navigator.of(context).pop(int.parse(_qty.text.trim()).toDouble());
             }
           },
           child: const Text('เพิ่ม'),

@@ -18,9 +18,6 @@ const _statuses = [
   InvoiceStatus.cancelled,
 ];
 
-/// Normalises the newer backend's 99 (cancelled) to 4.
-int? _statusKey(int? id) => id == 99 ? InvoiceStatus.cancelled : id;
-
 class InvoicesPage extends StatefulWidget {
   const InvoicesPage({super.key});
 
@@ -66,7 +63,7 @@ class _InvoicesPageState extends State<InvoicesPage> {
       all.where((i) => _query.isEmpty || i.matches(_query)).toList();
 
   List<Invoice> _filtered(List<Invoice> all) => _searched(all)
-      .where((i) => _status == null || _statusKey(i.statusId) == _status)
+      .where((i) => _status == null || i.statusId == _status)
       .toList();
 
   @override
@@ -76,7 +73,7 @@ class _InvoicesPageState extends State<InvoicesPage> {
       body: Column(
         children: [
           SearchField(
-            hint: 'ค้นหาเลขที่ / งานซ่อม / ลูกค้า / ทะเบียน',
+            hint: 'ค้นหาเลขที่ / ใบเสนอราคา / ลูกค้า / ทะเบียน',
             onChanged: (v) => setState(() {
               _query = v;
               _page = 0;
@@ -88,7 +85,7 @@ class _InvoicesPageState extends State<InvoicesPage> {
               final searched = _searched(snap.data ?? const []);
               int count(int? s) => s == null
                   ? searched.length
-                  : searched.where((i) => _statusKey(i.statusId) == s).length;
+                  : searched.where((i) => i.statusId == s).length;
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -169,6 +166,20 @@ class _InvoiceTile extends StatelessWidget {
   final Invoice invoice;
   final VoidCallback onTap;
 
+  /// Saved `Amount` (net total, set when confirmed / paid / cancelled). A
+  /// draft has no amount yet: show the computed grand total before the
+  /// pledge deduction (the list response has no pledges).
+  static String _amountText(Invoice inv) {
+    final amount = inv.amount;
+    if (inv.statusId != InvoiceStatus.pendingConfirm && amount != null && amount > 0) {
+      return '${formatMoney(amount)} บาท';
+    }
+    if (inv.isDeposit) {
+      return '${formatMoney(amount)} บาท';
+    }
+    return '~${formatMoney(inv.totals().grandTotal)} บาท';
+  }
+
   @override
   Widget build(BuildContext context) {
     final inv = invoice;
@@ -206,12 +217,17 @@ class _InvoiceTile extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${formatThaiDate(inv.date)} · งานซ่อม #${inv.repairId ?? '-'}',
+                      [
+                        formatThaiDate(inv.date),
+                        if (inv.isDeposit) 'เงินมัดจำ',
+                        if (inv.repairId != null) 'งานซ่อม #${inv.repairId}',
+                        ?inv.quotationId,
+                      ].join(' · '),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
                   Text(
-                    '${formatMoney(inv.totals.grandTotal)} บาท',
+                    _amountText(inv),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],

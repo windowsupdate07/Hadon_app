@@ -5,7 +5,7 @@ import '../../../core/widgets/state_views.dart';
 import '../quotation_models.dart';
 import '../quotations_api.dart';
 
-/// Bottom sheet listing cars (with owner) to approve a quotation for.
+/// Bottom sheet listing cars (with owner) for a quotation.
 /// Shows cars of [modelId] first (`GET /cars/by-model/:id`), with a switch to
 /// list every car (`GET /cars`).
 Future<CarOption?> showCarPicker(
@@ -51,7 +51,7 @@ class _CarPickerSheetState extends State<_CarPickerSheet> {
           Text('เลือกรถยนต์ของลูกค้า',
               style: Theme.of(context).textTheme.titleMedium),
           SearchField(
-            hint: 'ค้นหาทะเบียน / ชื่อลูกค้า / VIN',
+            hint: 'ค้นหาทะเบียน / ชื่อลูกค้า / เบอร์โทร / VIN',
             onChanged: (v) => setState(() => _query = v),
           ),
           if (widget.modelId != null)
@@ -100,7 +100,8 @@ class _CarPickerSheetState extends State<_CarPickerSheet> {
                       title: Text(c.plate.isEmpty ? 'รถ #${c.id}' : c.plate),
                       subtitle: Text(
                         '${c.brandModel}\n'
-                        '${noOwner ? 'ไม่มีข้อมูลเจ้าของ' : c.owner}',
+                        '${noOwner ? 'ไม่มีข้อมูลเจ้าของ' : c.owner}'
+                        '${c.ownerTel == null ? '' : ' · โทร. ${c.ownerTel}'}',
                       ),
                       isThreeLine: true,
                       onTap: () => Navigator.of(context).pop(c),

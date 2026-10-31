@@ -2,7 +2,7 @@ import '../../core/network/api_client.dart';
 import '../../core/utils/json.dart';
 import 'customer_models.dart';
 
-/// `/customers` and `/addresses` endpoints of ntp-api.
+/// `/customers` and `/addresses` endpoints of the NTP backend.
 class CustomersApi {
   CustomersApi(this._api);
 
@@ -17,6 +17,19 @@ class CustomersApi {
 
   Future<Customer> findOne(int id) =>
       _api.getOne('/customers/$id', Customer.fromJson);
+
+  /// `GET /customers/check-id-number/:id` -> `{ exists, data }`. Returns the
+  /// customer already using [idNumber], or null.
+  Future<Customer?> findByIdNumber(String idNumber) async {
+    final res = await _api.get(
+      '/customers/check-id-number/${Uri.encodeComponent(idNumber)}',
+    );
+    if (res is! Map || !asBool(res['exists'])) {
+      return null;
+    }
+    final data = asMap(res['data']);
+    return data == null ? null : Customer.fromJson(data);
+  }
 
   /// `POST /customers` (createWithAddress): the customer columns plus an
   /// `address` object, created in one transaction with AddressTypeID 1.
@@ -37,6 +50,13 @@ class CustomersApi {
       },
     );
     return res is Map ? asInt(asMap(res['createCustomer'])?['CustomerID']) : null;
+  }
+
+  /// `POST /customers/simple` (crud.create): customer only, no address.
+  /// Returns the new CustomerID.
+  Future<int?> createSimple(Map<String, dynamic> customer) async {
+    final res = await _api.post('/customers/simple', data: customer);
+    return res is Map ? asInt(asMap(res['data'])?['CustomerID']) : null;
   }
 
   Future<void> update(int id, Map<String, dynamic> body) =>

@@ -14,7 +14,9 @@ class CustomerFormData {
     String? surname,
     String? idNumber,
     String? tel,
-  })  : name = TextEditingController(text: name),
+    String? ratingColor,
+  })  : rating = CustomerRating.of(ratingColor),
+        name = TextEditingController(text: name),
         surname = TextEditingController(text: surname),
         idNumber = TextEditingController(text: idNumber),
         tel = TextEditingController(text: tel);
@@ -25,9 +27,13 @@ class CustomerFormData {
         surname: c.surname,
         idNumber: c.idNumber,
         tel: c.tel,
+        ratingColor: c.ratingColor,
       );
 
   int? titleId;
+
+  /// `RatingColor`, defaults to green like the web.
+  CustomerRating rating;
   final TextEditingController name;
   final TextEditingController surname;
   final TextEditingController idNumber;
@@ -46,7 +52,14 @@ class CustomerFormData {
       'CustomerSurname': clean(surname),
       'IDNumber': clean(idNumber),
       'CustomerTel': clean(tel),
+      'RatingColor': rating.value,
     };
+  }
+
+  /// Trimmed ID number, or null when empty.
+  String? get idNumberValue {
+    final v = idNumber.text.trim();
+    return v.isEmpty ? null : v;
   }
 
   void dispose() {
@@ -57,7 +70,8 @@ class CustomerFormData {
   }
 }
 
-/// Title, name, surname, ID number and phone. Must be inside a [Form].
+/// Title, name, surname, phone, ID number and rating. Must be inside a
+/// [Form].
 class CustomerFormFields extends StatefulWidget {
   const CustomerFormFields({super.key, required this.data});
 
@@ -139,7 +153,43 @@ class _CustomerFormFieldsState extends State<CustomerFormFields> {
             return null;
           },
         ),
+        _gap,
+        DropdownButtonFormField<CustomerRating>(
+          initialValue: d.rating,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'ระดับลูกค้า'),
+          items: [
+            for (final r in CustomerRating.all)
+              DropdownMenuItem(
+                value: r,
+                child: Row(
+                  children: [
+                    RatingDot(r),
+                    const SizedBox(width: 8),
+                    Text(r.label),
+                  ],
+                ),
+              ),
+          ],
+          onChanged: (r) => setState(() => d.rating = r ?? d.rating),
+        ),
       ],
+    );
+  }
+}
+
+/// Small coloured circle for [CustomerRating] (the web's `mdi-circle`).
+class RatingDot extends StatelessWidget {
+  const RatingDot(this.rating, {super.key, this.size = 12});
+
+  final CustomerRating rating;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'ระดับ: ${rating.label}',
+      child: Icon(Icons.circle, size: size, color: rating.color),
     );
   }
 }

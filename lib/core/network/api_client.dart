@@ -240,8 +240,14 @@ class ApiClient {
     return ApiException(msg ?? 'เกิดข้อผิดพลาด ($code)', statusCode: code);
   }
 
+  /// Some controllers put the real cause in `error` next to a generic
+  /// `message` (e.g. insufficient stock on create-with-repair).
   String? _message(Map data) {
-    final msg = data['message'];
-    return msg?.toString();
+    final message = data['message']?.toString();
+    final error = data['error'];
+    if (error is String && error.isNotEmpty && error != message) {
+      return message == null ? error : '$message\n$error';
+    }
+    return message;
   }
 }

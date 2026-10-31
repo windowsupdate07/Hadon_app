@@ -6,7 +6,7 @@ import '../../core/widgets/app_dialogs.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/state_views.dart';
 import '../../layouts/app_scaffold.dart';
-import '../auth/auth_provider.dart';
+import 'vendor_detail_page.dart';
 import 'vendor_form_page.dart';
 import 'vendor_models.dart';
 import 'vendors_api.dart';
@@ -49,89 +49,23 @@ class _VendorsPageState extends State<VendorsPage> {
     }
   }
 
-  Future<void> _openForm([Vendor? vendor]) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => VendorFormPage(vendor: vendor)),
-    );
+  Future<void> _create() async {
+    final saved = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const VendorFormPage()));
     if (saved == true && mounted) {
       AppDialogs.toast(context, 'บันทึกข้อมูลเรียบร้อยแล้ว');
       await _refresh();
     }
   }
 
-  Future<void> _delete(Vendor vendor) async {
-    final ok = await AppDialogs.confirmDelete(
-      context,
-      'คู่ค้า "${vendor.name}"',
+  Future<void> _openDetail(Vendor vendor) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => VendorDetailPage(vendorId: vendor.id)),
     );
-    if (!ok || !mounted) {
-      return;
-    }
-    final done = await runWithProgress(context, () async {
-      await _api.remove(vendor.id);
-      return true;
-    }, successMessage: 'ลบข้อมูลเรียบร้อยแล้ว');
-    if (done == true && mounted) {
+    // Vendor / addresses may have changed inside the detail page.
+    if (mounted) {
       await _refresh();
-    }
-  }
-
-  Future<void> _showDetail(Vendor vendor) async {
-    final canManage = context.read<AuthProvider>().employee?.canManage ?? false;
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(vendor.name, style: Theme.of(context).textTheme.titleLarge),
-              const Divider(),
-              InfoRow('ประเภท', vendor.typeName),
-              InfoRow('เลขประจำตัว', vendor.idNumber),
-              InfoRow('เบอร์โทรศัพท์', vendor.tel),
-              InfoRow('ที่อยู่', vendor.address?.fullText),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  if (canManage) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                        ),
-                        onPressed: () => Navigator.of(context).pop('delete'),
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('ลบ'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).pop('edit'),
-                      icon: const Icon(Icons.edit),
-                      label: const Text('แก้ไข'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (!mounted) {
-      return;
-    }
-    if (action == 'edit') {
-      await _openForm(vendor);
-    } else if (action == 'delete') {
-      await _delete(vendor);
     }
   }
 
@@ -140,7 +74,7 @@ class _VendorsPageState extends State<VendorsPage> {
     return AppScaffold(
       title: 'ข้อมูลคู่ค้า',
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openForm(),
+        onPressed: _create,
         tooltip: 'เพิ่มคู่ค้า',
         child: const Icon(Icons.add),
       ),
@@ -210,11 +144,16 @@ class _VendorsPageState extends State<VendorsPage> {
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           child: ListTile(
-            onTap: () => _showDetail(v),
+            onTap: () => _openDetail(v),
             leading: CircleAvatar(
               child: Icon(juristic ? Icons.business : Icons.person),
             ),
-            title: Text(v.name),
+            title: Row(
+              children: [
+                Expanded(child: Text(v.name)),
+                VendorRatingDot(v.rating),
+              ],
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

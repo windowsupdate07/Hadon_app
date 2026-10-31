@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,11 +7,13 @@ import 'package:provider/provider.dart';
 import '../../core/data/lookups.dart';
 import '../../core/network/api_client.dart';
 import '../../core/widgets/app_dialogs.dart';
+import '../auth/auth_provider.dart';
 import '../auth/employee.dart';
 import '../parts/lookup_dropdown.dart';
 import 'employees_api.dart';
 
 /// Create (employee == null, via `/auth/register`) or edit an employee.
+/// Callers must check the role rules in [EmployeeExtras] first.
 /// Pops `true` after a successful save.
 class EmployeeFormPage extends StatefulWidget {
   const EmployeeFormPage({super.key, this.employee});
@@ -34,6 +38,20 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
   bool get _isEdit => widget.employee != null;
 
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  /// Web rule: letters and digits only, at least 6 characters.
+  static const _minUsernameLength = 6;
+
+  /// Roles strictly below the signed-in user's role (web rule). The edited
+  /// employee's current role is kept so the dropdown can show it.
+  Future<List<Option>> _loadRoles(Lookups lookups) async {
+    final myRole = context.read<AuthProvider>().employee?.roleId;
+    final current = widget.employee?.roleId;
+    final all = await lookups.roles();
+    return all
+        .where((o) => o.id == current || (myRole != null && o.id > myRole))
+        .toList();
+  }
 
   @override
   void initState() {
@@ -85,29 +103,57 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
       tel: _nullIfEmpty(_tel),
     );
 
+    final myRole = context.read<AuthProvider>().employee?.roleId;
+    if (myRole == null || _roleId! <= myRole) {
+      await AppDialogs.warn(
+        context,
+        'ไม่สามารถกำหนดระดับผู้ใช้งานเท่ากับหรือสูงกว่าของท่านได้',
+      );
+      return;
+    }
+
+    final bool ok;
     if (!_isEdit) {
-      final ok = await AppDialogs.confirm(
+      ok = await AppDialogs.confirm(
         context,
         title: 'ยืนยันการเพิ่มพนักงาน',
         message:
             'ระบบจะตั้งรหัสผ่านเริ่มต้นเป็น "$defaultEmployeePassword" '
             'กรุณาแจ้งพนักงานให้เข้าสู่ระบบและเปลี่ยนรหัสผ่านทันที',
       );
-      if (!ok || !mounted) {
-        return;
-      }
+    } else if (_statusId == EmployeeStatusId.disabled &&
+        !widget.employee!.isDisabled) {
+      ok = await AppDialogs.confirm(
+        context,
+        title: 'ยืนยันการยกเลิกผู้ใช้งาน',
+        message:
+            'พนักงานจะถูกออกจากระบบทุกอุปกรณ์ และไม่สามารถเข้าสู่ระบบได้ '
+            'ใช่หรือไม่?',
+        destructive: true,
+      );
+    } else {
+      ok = await AppDialogs.confirm(
+        context,
+        message: 'ท่านต้องการแก้ไขข้อมูลพนักงาน ใช่หรือไม่?',
+      );
+    }
+    if (!ok || !mounted) {
+      return;
     }
 
     final api = EmployeesApi(context.read<ApiClient>());
-    final ok = await runWithProgress(context, () async {
+    final saved = await runWithProgress(context, () async {
       if (_isEdit) {
         await api.update(widget.employee!.id, input);
       } else {
-        await api.register(_username.text.trim(), input);
+        // Same as the web: start with a random default avatar.
+        final avatar =
+            defaultProfileImages[Random().nextInt(defaultProfileImages.length)];
+        await api.register(_username.text.trim(), input, profileImage: avatar);
       }
       return true;
     });
-    if (ok == true && mounted) {
+    if (saved == true && mounted) {
       Navigator.of(context).pop(true);
     }
   }
@@ -146,17 +192,20 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
                 controller: _username,
                 decoration: const InputDecoration(labelText: 'ชื่อผู้ใช้งาน *'),
                 autocorrect: false,
+                enableSuggestions: false,
+                keyboardType: TextInputType.visiblePassword,
                 textInputAction: TextInputAction.next,
                 inputFormatters: [
-                  FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9]')),
                 ],
                 validator: (v) {
                   final s = (v ?? '').trim();
                   if (s.isEmpty) {
                     return 'กรุณากรอกชื่อผู้ใช้งาน';
                   }
-                  if (s.length < 3) {
-                    return 'ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร';
+                  if (s.length < _minUsernameLength) {
+                    return 'ชื่อผู้ใช้งานต้องมีอย่างน้อย '
+                        '$_minUsernameLength ตัวอักษร (a-z, 0-9)';
                   }
                   return null;
                 },
@@ -197,21 +246,31 @@ class _EmployeeFormPageState extends State<EmployeeFormPage> {
             ),
             gap,
             LookupDropdown(
-              label: 'สิทธิ์การใช้งาน',
+              label: 'ระดับผู้ใช้งาน',
               required: true,
-              load: lookups.roles,
+              load: () => _loadRoles(lookups),
               value: _roleId,
               onChanged: (o) => setState(() => _roleId = o?.id),
             ),
             gap,
-            LookupDropdown(
-              label: 'สถานะ',
-              required: true,
-              load: lookups.employeeStatuses,
-              value: _statusId,
-              onChanged: (o) => setState(() => _statusId = o?.id),
-            ),
-            gap,
+            if (_isEdit) ...[
+              LookupDropdown(
+                label: 'สถานะ',
+                required: true,
+                load: lookups.employeeStatuses,
+                value: _statusId,
+                onChanged: (o) => setState(() => _statusId = o?.id),
+              ),
+              if (_statusId == EmployeeStatusId.disabled)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text(
+                    'ผู้ใช้งานที่ถูกยกเลิกจะถูกออกจากระบบทุกอุปกรณ์',
+                    style: TextStyle(color: Colors.orange),
+                  ),
+                ),
+              gap,
+            ],
             TextFormField(
               controller: _email,
               decoration: const InputDecoration(labelText: 'อีเมล'),

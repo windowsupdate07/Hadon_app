@@ -17,6 +17,8 @@ class LookupDropdown extends StatefulWidget {
     required this.onChanged,
     this.required = false,
     this.disabledHint,
+    this.enabled = true,
+    this.helperText,
   });
 
   final String label;
@@ -33,6 +35,12 @@ class LookupDropdown extends StatefulWidget {
 
   /// Hint shown while [load] is null, e.g. "เลือกจังหวัดก่อน".
   final String? disabledHint;
+
+  /// False makes the field read-only (value still shown).
+  final bool enabled;
+
+  /// Shown under the field, e.g. why it is locked.
+  final String? helperText;
 
   @override
   State<LookupDropdown> createState() => _LookupDropdownState();
@@ -101,7 +109,10 @@ class _LookupDropdownState extends State<LookupDropdown> {
   Widget build(BuildContext context) {
     final hasValue = _options.any((o) => o.id == widget.value);
     final selected = hasValue ? widget.value : null;
-    final enabled = widget.load != null && !_loading && _error == null;
+    final enabled = widget.enabled &&
+        widget.load != null &&
+        !_loading &&
+        _error == null;
 
     Widget? suffix;
     if (_loading) {
@@ -134,7 +145,10 @@ class _LookupDropdownState extends State<LookupDropdown> {
       decoration: InputDecoration(
         labelText: widget.label,
         suffixIcon: suffix,
-        helperText: _error != null ? 'โหลดข้อมูลไม่สำเร็จ แตะเพื่อลองใหม่' : null,
+        helperText: _error != null
+            ? 'โหลดข้อมูลไม่สำเร็จ แตะเพื่อลองใหม่'
+            : widget.helperText,
+        helperMaxLines: 2,
       ),
       hint: Text(hint),
       disabledHint: Text(

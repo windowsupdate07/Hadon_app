@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/statuses.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/format.dart';
 import '../../core/widgets/app_dialogs.dart';
@@ -12,7 +13,18 @@ import 'preset_dialogs.dart';
 import 'preset_models.dart';
 import 'presets_api.dart';
 
-enum _StatusFilter { all, active, inactive }
+/// Ready / not ready follow the web (stock covers every part); disabled is
+/// the manual `Preset.Status` switch.
+enum _StatusFilter {
+  all('ทั้งหมด'),
+  ready('พร้อมใช้งาน'),
+  notReady('ไม่พร้อมใช้งาน'),
+  inactive('ปิดใช้งาน');
+
+  const _StatusFilter(this.label);
+
+  final String label;
+}
 
 class PresetsPage extends StatefulWidget {
   const PresetsPage({super.key});
@@ -53,8 +65,10 @@ class _PresetsPageState extends State<PresetsPage> {
         return false;
       }
       switch (_filter) {
-        case _StatusFilter.active:
-          return p.isActive;
+        case _StatusFilter.ready:
+          return p.isStockReady;
+        case _StatusFilter.notReady:
+          return !p.isStockReady;
         case _StatusFilter.inactive:
           return !p.isActive;
         case _StatusFilter.all:
@@ -115,11 +129,7 @@ class _PresetsPageState extends State<PresetsPage> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
-              children: [
-                _filterChip('ทั้งหมด', _StatusFilter.all),
-                _filterChip('ใช้งาน', _StatusFilter.active),
-                _filterChip('ไม่ใช้งาน', _StatusFilter.inactive),
-              ],
+              children: [for (final f in _StatusFilter.values) _filterChip(f)],
             ),
           ),
           Expanded(
@@ -136,11 +146,11 @@ class _PresetsPageState extends State<PresetsPage> {
     );
   }
 
-  Widget _filterChip(String label, _StatusFilter value) {
+  Widget _filterChip(_StatusFilter value) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
-        label: Text(label),
+        label: Text(value.label),
         selected: _filter == value,
         onSelected: (_) => setState(() {
           _filter = value;
@@ -198,18 +208,23 @@ class _PresetsPageState extends State<PresetsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
-                      StatusChip(presetStatusInfo(p)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'อะไหล่ ${p.details.length} รายการ · '
-                          '${formatMoney(p.totalPrice)} บาท',
-                          overflow: TextOverflow.ellipsis,
+                      StatusChip(presetStockInfo(p)),
+                      if (!p.isActive) StatusChip(presetStatusInfo(p)),
+                      if (p.refCount > 0)
+                        StatusChip(
+                          StatusInfo('${p.refCount} กลุ่มงาน', Colors.blueGrey),
                         ),
-                      ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'อะไหล่ ${p.details.length} รายการ · '
+                    '${formatMoney(p.totalPrice)} บาท',
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (names.isNotEmpty)
                     Padding(

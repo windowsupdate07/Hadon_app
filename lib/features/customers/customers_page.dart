@@ -11,6 +11,7 @@ import '../../layouts/app_scaffold.dart';
 import 'customer_form_page.dart';
 import 'customer_models.dart';
 import 'customers_api.dart';
+import 'widgets/customer_form_fields.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
@@ -66,7 +67,7 @@ class _CustomersPageState extends State<CustomersPage> {
       body: Column(
         children: [
           SearchField(
-            hint: 'ค้นหาชื่อ / เบอร์โทร / เลขบัตร / ทะเบียนรถ',
+            hint: 'ค้นหาชื่อ / เบอร์โทร / เลขบัตร / ทะเบียน / รุ่นรถ',
             onChanged: (v) => setState(() {
               _query = v;
               _page = 0;
@@ -152,7 +153,19 @@ class _CustomerTile extends StatelessWidget {
         backgroundColor: scheme.primaryContainer,
         child: Icon(Icons.person, color: scheme.onPrimaryContainer),
       ),
-      title: Text(c.fullName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              c.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          RatingDot(c.rating, size: 10),
+        ],
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

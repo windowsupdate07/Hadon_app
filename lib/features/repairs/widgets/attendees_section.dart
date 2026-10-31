@@ -15,11 +15,15 @@ class AttendeesSection extends StatefulWidget {
     required this.api,
     required this.repairId,
     required this.editable,
+    this.onChanged,
   });
 
   final RepairsApi api;
   final int repairId;
   final bool editable;
+
+  /// Called after a successful change.
+  final VoidCallback? onChanged;
 
   @override
   State<AttendeesSection> createState() => _AttendeesSectionState();
@@ -38,13 +42,21 @@ class _AttendeesSectionState extends State<AttendeesSection> {
     setState(() => _future = widget.api.attendees(widget.repairId));
   }
 
+  /// Lets the page refresh the timeline; falls back to a local reload.
+  void _changed() {
+    final cb = widget.onChanged;
+    if (cb != null) {
+      cb();
+    } else {
+      _reload();
+    }
+  }
+
   Future<void> _edit(List<Employee> current) async {
-    final ids = await showDialog<List<int>>(
-      context: context,
-      builder: (_) => _EmployeePickerDialog(
-        api: widget.api,
-        selected: current.map((e) => e.id).toSet(),
-      ),
+    final ids = await showAttendeePicker(
+      context,
+      api: widget.api,
+      selected: current.map((e) => e.id).toSet(),
     );
     if (ids == null || !mounted) {
       return;
@@ -54,7 +66,7 @@ class _AttendeesSectionState extends State<AttendeesSection> {
       return true;
     }, successMessage: 'บันทึกช่างผู้รับผิดชอบเรียบร้อยแล้ว');
     if (done == true && mounted) {
-      _reload();
+      _changed();
     }
   }
 
@@ -73,7 +85,7 @@ class _AttendeesSectionState extends State<AttendeesSection> {
       return true;
     }, successMessage: 'นำช่างออกเรียบร้อยแล้ว');
     if (done == true && mounted) {
-      _reload();
+      _changed();
     }
   }
 
@@ -135,12 +147,39 @@ class _AttendeesSectionState extends State<AttendeesSection> {
   }
 }
 
-/// Multi-select of active employees (technicians listed first).
+/// Multi-select of active employees (technicians listed first). Returns the
+/// chosen ids, or null when cancelled. With [requireOne] the dialog refuses
+/// an empty selection (finishing a repair needs at least one technician).
+Future<List<int>?> showAttendeePicker(
+  BuildContext context, {
+  required RepairsApi api,
+  required Set<int> selected,
+  bool requireOne = false,
+  String confirmLabel = 'บันทึก',
+}) {
+  return showDialog<List<int>>(
+    context: context,
+    builder: (_) => _EmployeePickerDialog(
+      api: api,
+      selected: selected,
+      requireOne: requireOne,
+      confirmLabel: confirmLabel,
+    ),
+  );
+}
+
 class _EmployeePickerDialog extends StatefulWidget {
-  const _EmployeePickerDialog({required this.api, required this.selected});
+  const _EmployeePickerDialog({
+    required this.api,
+    required this.selected,
+    required this.requireOne,
+    required this.confirmLabel,
+  });
 
   final RepairsApi api;
   final Set<int> selected;
+  final bool requireOne;
+  final String confirmLabel;
 
   @override
   State<_EmployeePickerDialog> createState() => _EmployeePickerDialogState();
@@ -245,8 +284,14 @@ class _EmployeePickerDialogState extends State<_EmployeePickerDialog> {
           child: const Text('ยกเลิก'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(_selected.toList()),
-          child: Text('บันทึก (${_selected.length})'),
+          onPressed: () {
+            if (widget.requireOne && _selected.isEmpty) {
+              AppDialogs.warn(context, 'กรุณาเลือกพนักงานซ่อมอย่างน้อย 1 คน');
+              return;
+            }
+            Navigator.of(context).pop(_selected.toList());
+          },
+          child: Text('${widget.confirmLabel} (${_selected.length})'),
         ),
       ],
     );

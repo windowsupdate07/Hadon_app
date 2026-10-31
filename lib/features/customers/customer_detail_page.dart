@@ -9,10 +9,13 @@ import '../../core/widgets/state_views.dart';
 import '../auth/auth_provider.dart';
 import '../cars/car_form_page.dart';
 import '../cars/car_models.dart';
+import '../cars/car_repair_history.dart';
+import '../cars/cars_api.dart';
 import 'customer_form_page.dart';
 import 'customer_models.dart';
 import 'customers_api.dart';
 import 'widgets/address_form_fields.dart';
+import 'widgets/customer_form_fields.dart';
 
 class CustomerDetailPage extends StatefulWidget {
   const CustomerDetailPage({super.key, required this.customerId});
@@ -25,13 +28,24 @@ class CustomerDetailPage extends StatefulWidget {
 
 class _CustomerDetailPageState extends State<CustomerDetailPage> {
   late final CustomersApi _api = CustomersApi(context.read<ApiClient>());
+  late final CarsApi _carsApi = CarsApi(context.read<ApiClient>());
   late Future<Customer> _future = _load();
 
   /// Last loaded customer, used by the app bar actions.
   Customer? _customer;
 
+  /// Customer + addresses from `/customers/:id`, cars from
+  /// `/cars/by-customer/:id` (which, unlike the nested cars, include repair
+  /// ids). Falls back to the nested cars if the second call fails.
   Future<Customer> _load() async {
-    final c = await _api.findOne(widget.customerId);
+    final carsFuture = _carsApi
+        .findByCustomer(widget.customerId)
+        .then<List<Car>?>((v) => v, onError: (_) => null);
+    var c = await _api.findOne(widget.customerId);
+    final cars = await carsFuture;
+    if (cars != null) {
+      c = c.withCars(cars);
+    }
     if (mounted) {
       setState(() => _customer = c);
     }
@@ -218,6 +232,7 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
                   InfoRow('ชื่อ-นามสกุล', c.fullName, bold: true),
                   InfoRow('เบอร์โทรศัพท์', c.tel),
                   InfoRow('เลขประจำตัว', c.idNumber),
+                  _RatingRow(c.rating),
                 ],
               ),
             ),
@@ -340,15 +355,47 @@ class _CustomerDetailPageState extends State<CustomerDetailPage> {
                     ),
                     subtitle: Text(
                       [
-                        car.brandModel,
+                        car.brandModelColor,
                         if (car.vin != null) 'VIN ${car.vin}',
                       ].join(' · '),
                     ),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: IconButton(
+                      tooltip: 'ประวัติการซ่อม',
+                      onPressed: () => showCarRepairHistory(context, car),
+                      icon: Badge(
+                        isLabelVisible: car.hasRepairs,
+                        label: Text('${car.repairIds.length}'),
+                        child: const Icon(Icons.history),
+                      ),
+                    ),
                     onTap: () => _openCar(c, car: car),
                   ),
               ],
             ),
+    );
+  }
+}
+
+class _RatingRow extends StatelessWidget {
+  const _RatingRow(this.rating);
+
+  final CustomerRating rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 120,
+            child: Text('ระดับ', style: TextStyle(color: Colors.grey)),
+          ),
+          RatingDot(rating),
+          const SizedBox(width: 6),
+          Text(rating.label),
+        ],
+      ),
     );
   }
 }

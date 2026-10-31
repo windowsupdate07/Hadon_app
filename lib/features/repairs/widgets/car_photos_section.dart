@@ -9,16 +9,21 @@ import '../repair_models.dart';
 import '../repairs_api.dart';
 import 'inline_error.dart';
 
-/// Car photos taken at check-in (`ImageCar`).
+/// Car photos taken at check-in (`ImageCar`). They are stored per
+/// quotation, so a repair without a QuotationID has no photos.
 class CarPhotosSection extends StatefulWidget {
   const CarPhotosSection({
     super.key,
     required this.api,
-    required this.repairId,
+    required this.quotationId,
+    required this.editable,
   });
 
   final RepairsApi api;
-  final int repairId;
+  final String? quotationId;
+
+  /// Add / delete allowed.
+  final bool editable;
 
   @override
   State<CarPhotosSection> createState() => _CarPhotosSectionState();
@@ -29,14 +34,30 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
 
   RepairsApi get _api => widget.api;
 
+  /// Types 1-8 are the standard shots and allowed once each (same rule as
+  /// the web uploader); "other" (99) can repeat.
+  static const _otherType = 99;
+
+  List<CarImage> _current = const [];
+
   @override
   void initState() {
     super.initState();
-    _future = _api.images(widget.repairId);
+    _future = _load();
+  }
+
+  Future<List<CarImage>> _load() async {
+    final id = widget.quotationId;
+    if (id == null) {
+      return const [];
+    }
+    final list = await _api.images(id);
+    _current = list;
+    return list;
   }
 
   void _reload() {
-    setState(() => _future = _api.images(widget.repairId));
+    setState(() => _future = _load());
   }
 
   Future<void> _add() async {
@@ -90,7 +111,7 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
     final picked = file;
     final done = await runWithProgress(context, () async {
       await _api.uploadImage(
-        repairId: widget.repairId,
+        quotationId: widget.quotationId!,
         imageCarTypeId: typeId,
         filePath: picked.path,
         fileName: picked.name,
@@ -110,6 +131,10 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
     }
     // Keep the seeded order (front, back, ... other) rather than alphabetical.
     final sorted = [...types]..sort((a, b) => a.id.compareTo(b.id));
+    final used = {
+      for (final i in _current)
+        if (i.typeId != null && i.typeId != _otherType) i.typeId!,
+    };
     return showDialog<int>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -117,10 +142,17 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
         children: [
           for (final t in sorted)
             SimpleDialogOption(
-              onPressed: () => Navigator.of(context).pop(t.id),
+              onPressed: used.contains(t.id)
+                  ? null
+                  : () => Navigator.of(context).pop(t.id),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(t.label),
+                child: Text(
+                  used.contains(t.id) ? '${t.label} (มีรูปแล้ว)' : t.label,
+                  style: used.contains(t.id)
+                      ? const TextStyle(color: Colors.grey)
+                      : null,
+                ),
               ),
             ),
         ],
@@ -153,13 +185,27 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.quotationId == null) {
+      return const SectionCard(
+        title: 'รูปภาพรถยนต์',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'งานซ่อมนี้ไม่ได้สร้างจากใบเสนอราคา จึงไม่มีรูปภาพรถยนต์',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
     return SectionCard(
       title: 'รูปภาพรถยนต์',
-      trailing: TextButton.icon(
-        onPressed: _add,
-        icon: const Icon(Icons.add_a_photo_outlined),
-        label: const Text('เพิ่มรูป'),
-      ),
+      trailing: widget.editable
+          ? TextButton.icon(
+              onPressed: _add,
+              icon: const Icon(Icons.add_a_photo_outlined),
+              label: const Text('เพิ่มรูป'),
+            )
+          : null,
       child: FutureBuilder<List<CarImage>>(
         future: _future,
         builder: (context, snap) {
@@ -223,22 +269,23 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
                   ),
                 ),
               ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: Material(
-                  color: Colors.black45,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => _delete(image),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.close, size: 16, color: Colors.white),
+              if (widget.editable)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Material(
+                    color: Colors.black45,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _delete(image),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.close, size: 16, color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -255,7 +302,7 @@ class _CarPhotosSectionState extends State<CarPhotosSection> {
   }
 }
 
-/// Authenticated image from `GET /images/car/:repairId/:filename`.
+/// Authenticated image from `GET /images/car/:quotationId/:filename`.
 class _NetworkCarImage extends StatelessWidget {
   const _NetworkCarImage({
     required this.api,

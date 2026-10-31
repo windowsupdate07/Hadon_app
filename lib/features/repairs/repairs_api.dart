@@ -7,7 +7,8 @@ import '../auth/employee.dart';
 import '../parts/part_model.dart';
 import 'repair_models.dart';
 
-/// Endpoints of `ntp-api` used by the repairs feature.
+/// Endpoints of the NTP backend (honda-ntp-antigravity) used by the repairs
+/// feature.
 class RepairsApi {
   RepairsApi(this._api);
 
@@ -19,9 +20,43 @@ class RepairsApi {
 
   Future<Repair> findOne(int id) => _api.getOne('/repair/$id', Repair.fromJson);
 
-  /// `crud.update(Repair)` — any Repair column may be sent.
+  /// `PUT /repair/:id`. The backend logs the change and, when moving to
+  /// REPAIRING (5), sets `AllocatedNum = NumOfUse` on every part.
   Future<void> updateWorkStatus(int repairId, int workStatusId) =>
       _api.put('/repair/$repairId', data: {'WorkStatusID': workStatusId});
+
+  /// [appointment] is required when [receiveType] is
+  /// [ReceiveType.appointment]. Sent as local time without zone
+  /// (`yyyy-MM-ddTHH:mm:00`), exactly like the web.
+  Future<void> updateReceiveType(
+    int repairId,
+    int receiveType,
+    DateTime? appointment,
+  ) {
+    String? date;
+    if (receiveType == ReceiveType.appointment && appointment != null) {
+      String two(int n) => n.toString().padLeft(2, '0');
+      final d = appointment;
+      date =
+          '${d.year}-${two(d.month)}-${two(d.day)}T${two(d.hour)}:${two(d.minute)}:00';
+    }
+    return _api.put(
+      '/repair/$repairId',
+      data: {'ReceiveType': receiveType, 'ReceiveAppointmentDate': date},
+    );
+  }
+
+  /// `POST /repair/cancel/:id` returns every part to stock, sets
+  /// WorkStatusID = 99 and cancels the repair's invoices (status 99).
+  Future<void> cancel(int repairId, String reason) =>
+      _api.post('/repair/cancel/$repairId', data: {'reason': reason});
+
+  /// `GET /repair/logs/:id` → `{ result, data: RepairLog[] }`, newest first.
+  Future<List<RepairLog>> logs(int repairId) async {
+    final res = await _api.get('/repair/logs/$repairId');
+    final data = res is Map ? res['data'] : res;
+    return asMapList(data).map(RepairLog.fromJson).toList();
+  }
 
   // ------------------------------------------------------ items / parts
 
@@ -30,48 +65,75 @@ class RepairsApi {
 
   /// `POST /repairDetail/with-part` creates the RepairDetail and its
   /// RepairParts in one transaction and deducts stock for every part.
+  ///
+  /// That route has no JWT middleware, so the log's EmployeeID falls back to
+  /// `req.body.EmployeeID`; [employeeId] is sent for the timeline.
   Future<void> createItem({
     required int repairId,
     required int repairCategoryId,
-    int? presetId,
+    required int presetId,
     required List<NewRepairPart> parts,
+    int? employeeId,
   }) {
-    return _api.post(
-      '/repairDetail/with-part',
-      data: {
-        'RepairID': repairId,
-        'RepairCategoryID': repairCategoryId,
-        'PresetID': presetId,
-        'repairParts': [for (final p in parts) p.toJson()],
-      },
+    return _guard(
+      () => _api.post(
+        '/repairDetail/with-part',
+        data: {
+          'RepairID': repairId,
+          'RepairCategoryID': repairCategoryId,
+          'PresetID': presetId,
+          'EmployeeID': ?employeeId,
+          'repairParts': [for (final p in parts) p.toJson()],
+        },
+      ),
     );
   }
 
   /// Deletes the RepairDetail and its parts; stock is returned server-side.
-  Future<void> deleteItem(int repairDetailId) =>
-      _api.delete('/repairDetail/delete-with-parts/$repairDetailId');
+  Future<void> deleteItem(int repairDetailId) => _guard(
+    () => _api.delete('/repairDetail/delete-with-parts/$repairDetailId'),
+  );
 
   /// `POST /repairPart` deducts `NumOfUse` from stock.
-  Future<void> addPart(int repairDetailId, NewRepairPart part) => _api.post(
-    '/repairPart',
-    data: {'RepairDetailID': repairDetailId, ...part.toJson()},
+  Future<void> addPart(int repairDetailId, NewRepairPart part) => _guard(
+    () => _api.post(
+      '/repairPart',
+      data: {'RepairDetailID': repairDetailId, ...part.toJson()},
+    ),
   );
 
   /// Uses `PUT /repairPart/bulk/update` (not `PUT /repairPart/:id`) because
   /// only the bulk endpoint adjusts stock when `NumOfUse` changes.
-  Future<void> updatePart(int repairPartId, Map<String, dynamic> fields) =>
-      _api.put(
-        '/repairPart/bulk/update',
-        data: {
-          'updates': [
-            {'RepairPartID': repairPartId, ...fields},
-          ],
-        },
-      );
+  ///
+  /// The backend stores the `updates` array verbatim as the timeline entry,
+  /// so `PartID` and `part` (ignored by Sequelize on update) are included to
+  /// keep it readable, the same way the web sends whole rows.
+  Future<void> updatePartQuantity(RepairPartLine line, int numOfUse) => _guard(
+    () => _api.put(
+      '/repairPart/bulk/update',
+      data: {
+        'updates': [
+          {
+            'RepairPartID': line.id,
+            'PartID': line.partId,
+            'NumOfUse': numOfUse,
+            'part': {
+              'PartName_th': line.partName,
+              'PartNumber': line.partNumber,
+            },
+          },
+        ],
+      },
+    ),
+  );
 
   /// `DELETE /repairPart/:id` returns `NumOfUse` to stock.
   Future<void> deletePart(int repairPartId) =>
-      _api.delete('/repairPart/$repairPartId');
+      _guard(() => _api.delete('/repairPart/$repairPartId'));
+
+  /// Current stock of a part (`GET /parts/:id` → `PartAmount`). The repair
+  /// detail endpoint excludes `PartAmount`.
+  Future<Part> part(int partId) => _api.getOne('/parts/$partId', Part.fromJson);
 
   Future<List<Preset>> presets() => _api.getList('/preset', Preset.fromJson);
 
@@ -80,7 +142,7 @@ class RepairsApi {
   Future<List<Employee>> attendees(int repairId) =>
       _api.getList('/repair/get-attendees/$repairId', Employee.fromJson);
 
-  /// Replaces the whole attendee list.
+  /// Replaces the whole attendee list (logged on the timeline).
   Future<void> setAttendees(int repairId, List<int> employeeIds) => _api.put(
     '/repair/set-attendees/$repairId',
     data: {'EmployeeIDs': employeeIds},
@@ -97,20 +159,24 @@ class RepairsApi {
 
   // --------------------------------------------------------------- images
 
-  Future<List<CarImage>> images(int repairId) =>
-      _api.getList('/imageCar/repairID/$repairId', CarImage.fromJson);
+  /// Car photos are stored per quotation.
+  Future<List<CarImage>> images(String quotationId) => _api.getList(
+    '/imageCar/quotationID/${Uri.encodeComponent(quotationId)}',
+    CarImage.fromJson,
+  );
 
-  /// Multer reads `RepairID` from `req.body` inside `destination`, so the
-  /// text fields must precede the file part (Dio writes fields first).
+  /// Multer reads `QuotationID` from `req.body` inside `destination` (the
+  /// folder is derived from it), so the text fields must precede the file
+  /// part (Dio writes fields first).
   Future<void> uploadImage({
-    required int repairId,
+    required String quotationId,
     required int imageCarTypeId,
     required String filePath,
     required String fileName,
   }) async {
     final form = FormData();
     form.fields
-      ..add(MapEntry('RepairID', '$repairId'))
+      ..add(MapEntry('QuotationID', quotationId))
       ..add(MapEntry('ImageCarTypeID', '$imageCarTypeId'));
     form.files.add(
       MapEntry(
@@ -124,19 +190,20 @@ class RepairsApi {
   Future<void> deleteImage(int imageCarId) =>
       _api.delete('/imageCar/$imageCarId');
 
-  /// `GET /images/car/:repairId/:filename` (requires `x-access-token`).
+  /// `GET /images/car/:quotationId/:filename` (requires `x-access-token`).
   String imageUrl(CarImage image) => _api.url(
-    '/images/car/${image.repairId}/${Uri.encodeComponent(image.fileName)}',
+    '/images/car/${Uri.encodeComponent(image.quotationId)}/'
+    '${Uri.encodeComponent(image.fileName)}',
   );
 
   Map<String, String> get authHeaders => _api.authHeaders;
 
-  // -------------------------------------------------------------- invoice
+  // ------------------------------------------------------ invoice/receipts
 
   /// Returns null when the repair has no invoice yet. The backend answers
-  /// `{ result: false, message: 'Error retrieving Invoice ...' }` in that
-  /// case (it dereferences a null row), which [ApiClient] turns into an
-  /// [ApiException] without a status code.
+  /// `{ result: false, message: 'Error retrieving Invoice with repairId=..' }`
+  /// in that case (it dereferences a null row), which [ApiClient] turns into
+  /// an [ApiException] without a status code.
   Future<RepairInvoice?> invoice(int repairId) async {
     try {
       final res = await _api.get('/invoices/by-repair-id/$repairId');
@@ -153,9 +220,40 @@ class RepairsApi {
       rethrow;
     }
   }
+
+  /// `RecieptStatusID` of every receipt of the repair
+  /// (`GET /receipts/by-repair-id/:id` → `{ result, data: [] }`).
+  Future<List<int?>> receiptStatuses(int repairId) async {
+    final res = await _api.get('/receipts/by-repair-id/$repairId');
+    final data = res is Map ? res['data'] : res;
+    return [
+      for (final r in asMapList(data))
+        asInt(r['RecieptStatusID']) ?? asInt(r['ReceiptStatusID']),
+    ];
+  }
+
+  // -------------------------------------------------------------- helpers
+
+  /// Translates the backend's English stock errors into Thai.
+  Future<void> _guard(Future<dynamic> Function() call) async {
+    try {
+      await call();
+    } on ApiException catch (e) {
+      final m = e.message;
+      if (m.contains('Not enough stock') || m.contains('Insufficient stock')) {
+        throw ApiException(
+          'สินค้าคงเหลือในคลังไม่เพียงพอ\n($m)',
+          statusCode: e.statusCode,
+        );
+      }
+      rethrow;
+    }
+  }
 }
 
-/// Body of a new RepairPart (prices are copied from the part master).
+/// Body of a new RepairPart, same fields as the web: prices are copied from
+/// the part master; Discount / isDiscount / PartStatusID use DB defaults
+/// (0 / 1 / 1) and AllocatedNum starts at 0.
 class NewRepairPart {
   const NewRepairPart({required this.part, required this.numOfUse});
 
@@ -167,8 +265,5 @@ class NewRepairPart {
     'NumOfUse': numOfUse,
     'PricePerUnit': part.pricePerUnit,
     'ServiceFee': part.serviceFee,
-    'Discount': 0,
-    'isDiscount': 1,
-    'PartStatusID': 1,
   };
 }

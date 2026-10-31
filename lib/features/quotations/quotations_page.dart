@@ -13,8 +13,6 @@ import 'quotation_models.dart';
 import 'quotations_api.dart';
 import 'widgets/quotation_form_dialog.dart';
 
-enum _Filter { all, pending, approved }
-
 class QuotationsPage extends StatefulWidget {
   const QuotationsPage({super.key});
 
@@ -26,7 +24,8 @@ class _QuotationsPageState extends State<QuotationsPage> {
   late final QuotationsApi _api = QuotationsApi(context.read<ApiClient>());
   late Future<List<Quotation>> _future;
   String _query = '';
-  _Filter _filter = _Filter.all;
+  /// null = ทั้งหมด.
+  QuotationStage? _stage;
   int _page = 0;
 
   @override
@@ -58,18 +57,11 @@ class _QuotationsPageState extends State<QuotationsPage> {
   }
 
   Future<void> _create() async {
-    final input = await showCreateQuotationDialog(context);
+    final input = await openCreateQuotationForm(context, api: _api);
     if (input == null || !mounted) {
       return;
     }
-    final id = await runWithProgress(
-      context,
-      () => _api.create(
-        brandId: input.brandId,
-        modelId: input.modelId,
-        comment: input.comment,
-      ),
-    );
+    final id = await runWithProgress(context, () => _api.create(input));
     if (id == null || !mounted) {
       return;
     }
@@ -79,17 +71,12 @@ class _QuotationsPageState extends State<QuotationsPage> {
     }
   }
 
-  List<Quotation> _filtered(List<Quotation> all) {
-    return all.where((q) {
-      if (_filter == _Filter.pending && q.isApproved) {
-        return false;
-      }
-      if (_filter == _Filter.approved && !q.isApproved) {
-        return false;
-      }
-      return _query.isEmpty || q.matches(_query);
-    }).toList();
-  }
+  List<Quotation> _searched(List<Quotation> all) =>
+      all.where((q) => _query.isEmpty || q.matches(_query)).toList();
+
+  List<Quotation> _filtered(List<Quotation> all) => _searched(all)
+      .where((q) => _stage == null || q.stage == _stage)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -103,32 +90,40 @@ class _QuotationsPageState extends State<QuotationsPage> {
       body: Column(
         children: [
           SearchField(
-            hint: 'ค้นหาเลขที่ / ยี่ห้อ-รุ่น / ทะเบียน',
+            hint: 'ค้นหาเลขที่ / ทะเบียน / ลูกค้า / เบอร์โทร',
             onChanged: (v) => setState(() {
               _query = v;
               _page = 0;
             }),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                for (final f in _Filter.values)
-                  ChoiceChip(
-                    label: Text(switch (f) {
-                      _Filter.all => 'ทั้งหมด',
-                      _Filter.pending => 'รออนุมัติ',
-                      _Filter.approved => 'อนุมัติแล้ว',
-                    }),
-                    selected: _filter == f,
-                    onSelected: (_) => setState(() {
-                      _filter = f;
-                      _page = 0;
-                    }),
-                  ),
-              ],
-            ),
+          FutureBuilder<List<Quotation>>(
+            future: _future,
+            builder: (context, snap) {
+              final searched = _searched(snap.data ?? const []);
+              int count(QuotationStage? s) => s == null
+                  ? searched.length
+                  : searched.where((q) => q.stage == s).length;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    for (final s in <QuotationStage?>[null, ...QuotationStage.values])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text('${s?.label ?? 'ทั้งหมด'} (${count(s)})'),
+                          selected: _stage == s,
+                          onSelected: (_) => setState(() {
+                            _stage = s;
+                            _page = 0;
+                          }),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
           Expanded(
             child: AsyncBody<List<Quotation>>(
@@ -184,30 +179,57 @@ class _QuotationTile extends StatelessWidget {
   final Quotation quotation;
   final VoidCallback onTap;
 
+  static Color _color(QuotationStage s) => switch (s) {
+        QuotationStage.pending => Colors.blueGrey,
+        QuotationStage.waitingRepair => Colors.blue,
+        QuotationStage.waitingParts => Colors.orange,
+        QuotationStage.sent => Colors.green,
+      };
+
   @override
   Widget build(BuildContext context) {
     final q = quotation;
-    final plates = q.repairs.map((r) => r.plate).where((p) => p.isNotEmpty);
+    final stage = q.isCancelledRepair
+        ? const StatusInfo('ยกเลิกการซ่อม', Colors.red)
+        : StatusInfo(q.stage.label, _color(q.stage));
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: ListTile(
+      child: InkWell(
         onTap: onTap,
-        leading: const CircleAvatar(child: Icon(Icons.request_quote_outlined)),
-        title: Text(q.id, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(q.brandModel.isEmpty ? '-' : q.brandModel),
-            if (plates.isNotEmpty) Text('ทะเบียน ${plates.join(', ')}'),
-            Text(
-              '${formatThaiDate(q.date)} · ${q.employeeName ?? '-'}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      q.id,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  StatusChip(stage),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                [q.plate, q.brandModel].where((s) => s.isNotEmpty).join(' · '),
+              ),
+              if (q.customerDisplayName.isNotEmpty)
+                Text(
+                  q.customerDisplayName,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              const SizedBox(height: 4),
+              Text(
+                '${formatThaiDate(q.date)} · ${q.employeeName ?? '-'}',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
         ),
-        trailing: q.isApproved
-            ? const StatusChip(StatusInfo('อนุมัติแล้ว', Colors.green))
-            : const Icon(Icons.chevron_right),
       ),
     );
   }

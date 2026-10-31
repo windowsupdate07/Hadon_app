@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../core/utils/json.dart';
 import '../cars/car_models.dart';
 
@@ -11,6 +13,33 @@ const _bangkokProvinceId = 10;
 
 /// Title id meaning "not specified"; never shown in front of a name.
 const _noTitleId = 99;
+
+/// `Customers.RatingColor`. The web app stores Vuetify colour names
+/// (`green` / `warning` / `error`, default `green`) and shows them as a
+/// coloured dot in the "ระดับ" column.
+class CustomerRating {
+  const CustomerRating._(this.value, this.label, this.color);
+
+  final String value;
+  final String label;
+  final Color color;
+
+  static const green = CustomerRating._('green', 'สีเขียว', Colors.green);
+  static const warning = CustomerRating._('warning', 'สีเหลือง', Colors.amber);
+  static const error = CustomerRating._('error', 'สีแดง', Colors.red);
+
+  static const all = [green, warning, error];
+
+  /// Unknown / missing values fall back to green, like the web.
+  static CustomerRating of(String? value) {
+    for (final r in all) {
+      if (r.value == value) {
+        return r;
+      }
+    }
+    return green;
+  }
+}
 
 /// Row of the `Addresses` table with its province / district / sub-district.
 class Address {
@@ -78,7 +107,8 @@ class Address {
 }
 
 /// Row of the `Customers` table. [addresses] and [cars] are only filled by
-/// `GET /customers` and `GET /customers/:id`.
+/// `GET /customers` and `GET /customers/:id` (cars there carry brand, model
+/// and province but not `repairs`).
 class Customer {
   const Customer({
     required this.id,
@@ -88,6 +118,7 @@ class Customer {
     this.surname,
     this.idNumber,
     this.tel,
+    this.ratingColor,
     this.addresses = const [],
     this.cars = const [],
   });
@@ -109,6 +140,7 @@ class Customer {
       surname: asString(j['CustomerSurname']),
       idNumber: asString(j['IDNumber']),
       tel: asString(j['CustomerTel']),
+      ratingColor: asString(j['RatingColor']),
       addresses: addresses,
       cars: asMapList(j['cars']).map(Car.fromJson).toList(),
     );
@@ -121,8 +153,27 @@ class Customer {
   final String? surname;
   final String? idNumber;
   final String? tel;
+
+  /// Raw `RatingColor`, see [rating].
+  final String? ratingColor;
   final List<Address> addresses;
   final List<Car> cars;
+
+  CustomerRating get rating => CustomerRating.of(ratingColor);
+
+  /// Same customer with another car list (e.g. from `/cars/by-customer`).
+  Customer withCars(List<Car> cars) => Customer(
+        id: id,
+        titleId: titleId,
+        title: title,
+        name: name,
+        surname: surname,
+        idNumber: idNumber,
+        tel: tel,
+        ratingColor: ratingColor,
+        addresses: addresses,
+        cars: cars,
+      );
 
   /// "นายสมชาย ใจดี" (Thai titles are written without a space).
   String get fullName {
@@ -147,19 +198,29 @@ class Customer {
         'CustomerSurname': surname,
         'IDNumber': idNumber,
         'CustomerTel': tel,
+        'RatingColor': rating.value,
       };
 
-  /// Search by name, surname, phone, ID number and the plates of the
-  /// customer's cars (with plate province).
+  /// Search like the web table: id, name, ID number, phone and the
+  /// customer's cars (plate, province, brand / model, colour, VIN, engine no).
   bool matches(String q) {
     final s = q.toLowerCase().replaceAll(' ', '');
     bool has(String? v) =>
         (v ?? '').toLowerCase().replaceAll(' ', '').contains(s);
-    return has(fullName) ||
+    return has('$id') ||
+        has(fullName) ||
         has(name) ||
         has(surname) ||
         has(tel?.replaceAll('-', '')) ||
         has(idNumber) ||
-        cars.any((c) => has(c.plate) || has(c.provinceName));
+        cars.any(
+          (c) =>
+              has(c.plate) ||
+              has(c.provinceName) ||
+              has(c.brandModel) ||
+              has(c.color) ||
+              has(c.vin) ||
+              has(c.ec),
+        );
   }
 }

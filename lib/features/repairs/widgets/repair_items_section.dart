@@ -19,16 +19,26 @@ class RepairItemsSection extends StatefulWidget {
     required this.repair,
     required this.editable,
     required this.canDelete,
+    this.onLoaded,
+    this.onChanged,
   });
 
   final RepairsApi api;
   final Repair repair;
 
-  /// False once the job is finished or cancelled.
+  /// False once the job is repaired / finished / cancelled.
   final bool editable;
 
   /// Deleting items / parts is limited to admin & manager.
   final bool canDelete;
+
+  /// Receives the items every time they are (re)loaded.
+  final ValueChanged<List<RepairItem>>? onLoaded;
+
+  /// Called after a successful change (the page reloads everything so the
+  /// header, timeline and actions stay in sync). Falls back to a local
+  /// reload when null.
+  final VoidCallback? onChanged;
 
   @override
   State<RepairItemsSection> createState() => _RepairItemsSectionState();
@@ -39,14 +49,36 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
 
   RepairsApi get _api => widget.api;
 
+  int? get _status => widget.repair.workStatusId;
+
+  /// Parts were handed out by the allocation team; AllocatedNum is
+  /// meaningful from here on.
+  bool get _allocated =>
+      _status == WorkStatus.repairing || _status == WorkStatus.allocateMore;
+
   @override
   void initState() {
     super.initState();
-    _future = _api.items(widget.repair.id);
+    _future = _load();
   }
 
-  void _reload() {
-    setState(() => _future = _api.items(widget.repair.id));
+  Future<List<RepairItem>> _load() async {
+    final items = await _api.items(widget.repair.id);
+    widget.onLoaded?.call(items);
+    return items;
+  }
+
+  void _changed() {
+    final cb = widget.onChanged;
+    if (cb != null) {
+      cb();
+    } else {
+      setState(() => _future = _load());
+    }
+  }
+
+  void _retry() {
+    setState(() => _future = _load());
   }
 
   Future<void> _addItem() async {
@@ -56,7 +88,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
       repair: widget.repair,
     );
     if (created && mounted) {
-      _reload();
+      _changed();
     }
   }
 
@@ -65,7 +97,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
       context,
       title: 'ยืนยันการลบ?',
       message:
-          'ท่านต้องการลบรายการซ่อม "${item.categoryName ?? '-'}" '
+          'ท่านต้องการลบรายการ "${item.title}" '
           'และอะไหล่ทั้งหมด ${item.parts.length} รายการ ใช่หรือไม่?\n'
           '(จำนวนอะไหล่จะถูกคืนเข้าสต๊อก)',
       destructive: true,
@@ -78,7 +110,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
       return true;
     }, successMessage: 'ลบรายการซ่อมเรียบร้อยแล้ว');
     if (done == true && mounted) {
-      _reload();
+      _changed();
     }
   }
 
@@ -88,11 +120,25 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
       return;
     }
     final qty = picked.quantity.round();
-    if (qty <= 0) {
+    if (qty <= 0 || qty != picked.quantity) {
       await AppDialogs.warn(context, 'จำนวนต้องเป็นจำนวนเต็มที่มากกว่า 0');
       return;
     }
+    if (qty > picked.part.amount) {
+      await AppDialogs.warn(context, 'จำนวนที่ใช้เกินกว่าที่มีในคลัง');
+      return;
+    }
     if (!mounted) {
+      return;
+    }
+    final ok = await AppDialogs.confirm(
+      context,
+      message:
+          'เพิ่ม "${picked.part.displayName}" จำนวน ${formatNumber(qty)} '
+          '${picked.part.unitName ?? ''} ในรายการ "${item.title}" ใช่หรือไม่?\n'
+          '(จำนวนจะถูกตัดออกจากสต๊อก)',
+    );
+    if (!ok || !mounted) {
       return;
     }
     final done = await runWithProgress(context, () async {
@@ -103,21 +149,26 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
       return true;
     }, successMessage: 'เพิ่มอะไหล่เรียบร้อยแล้ว');
     if (done == true && mounted) {
-      _reload();
+      _changed();
     }
   }
 
   Future<void> _editPart(RepairPartLine line) async {
-    final fields = await showEditRepairPartDialog(context, line);
-    if (fields == null || !mounted) {
+    final qty = await showEditRepairPartDialog(
+      context,
+      api: _api,
+      line: line,
+      allocated: _allocated,
+    );
+    if (qty == null || !mounted) {
       return;
     }
     final done = await runWithProgress(context, () async {
-      await _api.updatePart(line.id, fields);
+      await _api.updatePartQuantity(line, qty);
       return true;
     }, successMessage: 'บันทึกข้อมูลเรียบร้อยแล้ว');
     if (done == true && mounted) {
-      _reload();
+      _changed();
     }
   }
 
@@ -138,7 +189,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
       return true;
     }, successMessage: 'ลบอะไหล่เรียบร้อยแล้ว');
     if (done == true && mounted) {
-      _reload();
+      _changed();
     }
   }
 
@@ -163,7 +214,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
             );
           }
           if (snap.hasError) {
-            return InlineError(error: snap.error!, onRetry: _reload);
+            return InlineError(error: snap.error!, onRetry: _retry);
           }
           final items = snap.data!;
           if (items.isEmpty) {
@@ -177,17 +228,17 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
               ),
             );
           }
-          final grandTotal = items.fold<double>(0, (s, i) => s + i.total);
+          final grandTotal = items.fold<double>(0, (s, i) => s + i.subtotal);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final item in items) _itemCard(item),
+              for (final (i, item) in items.indexed) _itemCard(i, item),
               const SizedBox(height: 8),
               Row(
                 children: [
                   const Expanded(
                     child: Text(
-                      'รวมทั้งสิ้น (ก่อน VAT)',
+                      'รวมเป็นเงิน (ก่อนหักส่วนลด / VAT)',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -207,7 +258,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
     );
   }
 
-  Widget _itemCard(RepairItem item) {
+  Widget _itemCard(int index, RepairItem item) {
     final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -224,12 +275,13 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.categoryName ?? '-',
+                        '${index + 1}. ${item.title}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      if (item.presetName != null)
+                      if (item.categoryName != null &&
+                          item.categoryName != item.title)
                         Text(
-                          'พรีเซ็ต: ${item.presetName}',
+                          'หมวดหมู่: ${item.categoryName}',
                           style: theme.textTheme.bodySmall,
                         ),
                     ],
@@ -265,7 +317,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
                 children: [
                   const Expanded(child: Text('รวมรายการ')),
                   Text(
-                    formatMoney(item.total),
+                    formatMoney(item.subtotal),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -288,6 +340,27 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
             ? 'ส่วนลด ${formatMoney(p.discount)} ฿'
             : 'ส่วนลด ${formatNumber(p.discount)}%',
     ];
+    final badges = <Widget>[
+      // Every part is LOCKED (1) by default; only show other statuses.
+      if (p.partStatusId != null && p.partStatusId != PartStatus.locked)
+        StatusChip(
+          PartStatus.info(p.partStatusId).label == '-' &&
+                  p.partStatusLabel != null
+              ? StatusInfo(p.partStatusLabel!, Colors.grey)
+              : PartStatus.info(p.partStatusId),
+        ),
+      if (_allocated && p.allocationDiff != 0)
+        StatusChip(
+          StatusInfo(
+            p.allocationDiff > 0
+                ? 'เพิ่ม ${formatNumber(p.allocationDiff)} '
+                      '(จัดสรรแล้ว ${formatNumber(p.allocatedNum)})'
+                : 'ลด ${formatNumber(-p.allocationDiff)} '
+                      '(จัดสรรแล้ว ${formatNumber(p.allocatedNum)})',
+            p.allocationDiff > 0 ? Colors.purple : Colors.red,
+          ),
+        ),
+    ];
     return InkWell(
       onTap: widget.editable ? () => _editPart(p) : null,
       borderRadius: BorderRadius.circular(8),
@@ -303,15 +376,17 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
                   Text(p.displayName),
                   if (p.partNumber != null) Text(p.partNumber!, style: small),
                   Text(details.join(' · '), style: small),
-                  const SizedBox(height: 4),
-                  StatusChip(PartStatus.info(p.partStatusId)),
+                  if (badges.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Wrap(spacing: 4, runSpacing: 4, children: badges),
+                  ],
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(left: 8, top: 2),
               child: Text(
-                formatMoney(p.total),
+                formatMoney(p.subtotal),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
@@ -326,7 +401,7 @@ class _RepairItemsSectionState extends State<RepairItemsSection> {
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
+                  const PopupMenuItem(value: 'edit', child: Text('แก้ไขจำนวน')),
                   if (widget.canDelete)
                     const PopupMenuItem(
                       value: 'delete',

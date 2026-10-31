@@ -1,27 +1,43 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/statuses.dart';
 import '../../../core/utils/format.dart';
 import '../../../core/widgets/common.dart';
+import '../../parts/part_model.dart';
 import '../repair_models.dart';
+import '../repairs_api.dart';
 
-/// Edits quantity / service fee / discount / part status of a repair part.
-/// Returns the fields for `PUT /repairPart/bulk/update`, or null if cancelled
-/// or nothing changed.
-Future<Map<String, dynamic>?> showEditRepairPartDialog(
-  BuildContext context,
-  RepairPartLine line,
-) {
-  return showDialog<Map<String, dynamic>>(
+/// Edits the quantity of a repair part, which is the only field the web's
+/// repair page edits (discounts are edited on the invoice page). Returns the
+/// new quantity, or null if cancelled or unchanged.
+///
+/// `PUT /repairPart/bulk/update` deducts / returns the difference from stock
+/// and rejects increases larger than `PartAmount`, so the current stock is
+/// fetched to validate before sending.
+Future<int?> showEditRepairPartDialog(
+  BuildContext context, {
+  required RepairsApi api,
+  required RepairPartLine line,
+  required bool allocated,
+}) {
+  return showDialog<int>(
     context: context,
-    builder: (_) => _EditRepairPartDialog(line: line),
+    builder: (_) =>
+        _EditRepairPartDialog(api: api, line: line, allocated: allocated),
   );
 }
 
 class _EditRepairPartDialog extends StatefulWidget {
-  const _EditRepairPartDialog({required this.line});
+  const _EditRepairPartDialog({
+    required this.api,
+    required this.line,
+    required this.allocated,
+  });
 
+  final RepairsApi api;
   final RepairPartLine line;
+
+  /// True once the parts were handed out (status 5 / 9): show AllocatedNum.
+  final bool allocated;
 
   @override
   State<_EditRepairPartDialog> createState() => _EditRepairPartDialogState();
@@ -30,194 +46,116 @@ class _EditRepairPartDialog extends StatefulWidget {
 class _EditRepairPartDialogState extends State<_EditRepairPartDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _qty;
-  late final TextEditingController _fee;
-  late final TextEditingController _discount;
-
-  /// 1 = baht; any other value = percent (backend PDF only checks `== 1`).
-  late int _isDiscount;
-
-  /// Value sent for "percent": keep the stored non-1 value, else 0.
-  int get _percentValue =>
-      widget.line.isDiscount != 1 ? widget.line.isDiscount : 0;
-  late int _partStatusId;
+  late Future<Part?> _stock;
 
   @override
   void initState() {
     super.initState();
-    final l = widget.line;
-    _qty = TextEditingController(text: '${l.numOfUse}');
-    _fee = TextEditingController(text: _plain(l.serviceFee));
-    _discount = TextEditingController(text: _plain(l.discount));
-    _isDiscount = l.isDiscount;
-    _partStatusId = l.partStatusId ?? PartStatus.locked;
+    _qty = TextEditingController(text: '${widget.line.numOfUse}');
+    _stock = _loadStock();
+  }
+
+  /// Null when the part cannot be loaded; the server still checks stock.
+  Future<Part?> _loadStock() async {
+    final id = widget.line.partId;
+    if (id == null) {
+      return null;
+    }
+    try {
+      return await widget.api.part(id);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
   void dispose() {
     _qty.dispose();
-    _fee.dispose();
-    _discount.dispose();
     super.dispose();
-  }
-
-  static String _plain(double v) =>
-      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
-
-  RepairPartLine get _preview {
-    final l = widget.line;
-    return RepairPartLine(
-      id: l.id,
-      repairDetailId: l.repairDetailId,
-      numOfUse: int.tryParse(_qty.text) ?? 0,
-      pricePerUnit: l.pricePerUnit,
-      serviceFee: double.tryParse(_fee.text) ?? 0,
-      discount: double.tryParse(_discount.text) ?? 0,
-      isDiscount: _isDiscount,
-    );
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final l = widget.line;
-    final p = _preview;
-    final fields = <String, dynamic>{};
-    if (p.numOfUse != l.numOfUse) {
-      fields['NumOfUse'] = p.numOfUse;
-    }
-    if (p.serviceFee != l.serviceFee) {
-      fields['ServiceFee'] = p.serviceFee;
-    }
-    if (p.discount != l.discount) {
-      fields['Discount'] = p.discount;
-    }
-    if (_isDiscount != l.isDiscount) {
-      fields['isDiscount'] = _isDiscount;
-    }
-    if (_partStatusId != l.partStatusId) {
-      fields['PartStatusID'] = _partStatusId;
-    }
-    Navigator.of(context).pop(fields.isEmpty ? null : fields);
-  }
-
-  String? _nonNegative(String? v) {
-    final n = double.tryParse(v ?? '');
-    if (n == null || n < 0) {
-      return 'กรุณากรอกตัวเลขให้ถูกต้อง';
-    }
-    return null;
+    final n = int.parse(_qty.text.trim());
+    Navigator.of(context).pop(n == widget.line.numOfUse ? null : n);
   }
 
   @override
   Widget build(BuildContext context) {
     final l = widget.line;
-    final preview = _preview;
+    final n = int.tryParse(_qty.text.trim()) ?? 0;
+    final preview = n * l.pricePerUnit + l.serviceFee;
     return AlertDialog(
       title: Text(l.displayName),
       scrollable: true,
-      content: Form(
-        key: _formKey,
-        onChanged: () => setState(() {}),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            InfoRow('ราคา/หน่วย', formatMoney(l.pricePerUnit)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _qty,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'จำนวน',
-                suffixText: l.unitName,
-              ),
-              validator: (v) {
-                final n = int.tryParse(v ?? '');
-                if (n == null || n <= 0) {
-                  return 'กรุณากรอกจำนวนเต็มที่มากกว่า 0';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _fee,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'ค่าบริการ',
-                suffixText: 'บาท',
-              ),
-              validator: _nonNegative,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      content: FutureBuilder<Part?>(
+        future: _stock,
+        builder: (context, snap) {
+          final loading = snap.connectionState != ConnectionState.done;
+          final stock = snap.data?.amount;
+          return Form(
+            key: _formKey,
+            onChanged: () => setState(() {}),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _discount,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                if (l.partNumber != null) InfoRow('รหัสอะไหล่', l.partNumber),
+                InfoRow('ราคา/หน่วย', formatMoney(l.pricePerUnit)),
+                InfoRow('ค่าบริการ', formatMoney(l.serviceFee)),
+                InfoRow(
+                  'คงเหลือในคลัง',
+                  loading
+                      ? 'กำลังโหลด...'
+                      : stock == null
+                      ? 'ไม่ทราบ'
+                      : '${formatNumber(stock)} ${l.unitName ?? ''}',
+                ),
+                if (widget.allocated)
+                  InfoRow(
+                    'จัดสรรแล้ว',
+                    '${formatNumber(l.allocatedNum)} ${l.unitName ?? ''}',
+                  ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _qty,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'จำนวน',
+                    suffixText: l.unitName,
+                    helperText: stock == null
+                        ? null
+                        : 'ใช้ได้สูงสุด ${formatNumber(l.numOfUse + stock)}',
+                  ),
+                  validator: (v) {
+                    final n = int.tryParse(v?.trim() ?? '');
+                    if (n == null || n <= 0) {
+                      return 'กรุณากรอกจำนวนเต็มที่มากกว่า 0';
+                    }
+                    if (stock != null && n - l.numOfUse > stock) {
+                      return 'สินค้าคงเหลือในคลังไม่เพียงพอ';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                InfoRow('จำนวนเงิน', formatMoney(preview), bold: true),
+                if (widget.allocated && n != l.allocatedNum)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'มีการเปลี่ยนแปลงจากจำนวนที่จัดสรรแล้ว '
+                      'กรุณากด "ขอจัดสรรอุปกรณ์เพิ่มเติม" หลังบันทึก',
+                      style: TextStyle(color: Colors.deepOrange[700]),
                     ),
-                    decoration: const InputDecoration(labelText: 'ส่วนลด'),
-                    validator: (v) {
-                      final err = _nonNegative(v);
-                      if (err != null) {
-                        return err;
-                      }
-                      final n = double.parse(v!);
-                      if (_isDiscount != 1 && n > 100) {
-                        return 'ไม่เกิน 100%';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: SegmentedButton<int>(
-                    showSelectedIcon: false,
-                    segments: [
-                      const ButtonSegment(value: 1, label: Text('฿')),
-                      ButtonSegment(
-                        value: _percentValue,
-                        label: const Text('%'),
-                      ),
-                    ],
-                    selected: {_isDiscount},
-                    onSelectionChanged: (s) =>
-                        setState(() => _isDiscount = s.first),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              initialValue: _partStatusId,
-              decoration: const InputDecoration(labelText: 'สถานะอะไหล่'),
-              items: [
-                for (final id in [
-                  PartStatus.locked,
-                  PartStatus.used,
-                  PartStatus.purchasing,
-                ])
-                  DropdownMenuItem(
-                    value: id,
-                    child: Text(PartStatus.info(id).label),
                   ),
               ],
-              onChanged: (v) => setState(() {
-                _partStatusId = v ?? _partStatusId;
-              }),
             ),
-            const SizedBox(height: 12),
-            InfoRow('รวม', formatMoney(preview.total), bold: true),
-          ],
-        ),
+          );
+        },
       ),
       actions: [
         TextButton(

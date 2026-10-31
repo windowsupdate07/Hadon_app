@@ -82,7 +82,7 @@ class _PresetFormDialogState extends State<_PresetFormDialog> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('เปิดใช้งาน'),
-              subtitle: Text(_active ? 'ใช้งาน' : 'ไม่ใช้งาน'),
+              subtitle: Text(_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'),
               value: _active,
               onChanged: (v) => setState(() => _active = v),
             ),

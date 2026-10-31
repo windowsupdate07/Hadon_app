@@ -8,6 +8,8 @@ import '../repair_models.dart';
 import '../repairs_api.dart';
 
 /// Shows the invoice created for this repair (if any) with a link to it.
+/// Invoices are normally created together with the repair from a quotation
+/// (`POST /invoices/create-with-repair`); cancelling the repair cancels it.
 class InvoiceLinkCard extends StatefulWidget {
   const InvoiceLinkCard({super.key, required this.api, required this.repairId});
 
@@ -75,6 +77,13 @@ class _InvoiceLinkCardState extends State<InvoiceLinkCard> {
               child: Row(
                 children: [
                   Text(formatThaiDate(inv.invoiceDate)),
+                  if (inv.amount != null && inv.amount! > 0) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '${formatMoney(inv.amount)} บาท',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
                   const SizedBox(width: 8),
                   Flexible(
                     child: StatusChip(

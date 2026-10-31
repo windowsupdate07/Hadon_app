@@ -10,6 +10,7 @@ import '../../core/widgets/state_views.dart';
 import '../../layouts/app_scaffold.dart';
 import 'car_form_page.dart';
 import 'car_models.dart';
+import 'car_repair_history.dart';
 import 'cars_api.dart';
 
 class CarsPage extends StatefulWidget {
@@ -61,7 +62,7 @@ class _CarsPageState extends State<CarsPage> {
       body: Column(
         children: [
           SearchField(
-            hint: 'ค้นหาทะเบียน / จังหวัด / ยี่ห้อ / รุ่น / เจ้าของ / VIN',
+            hint: 'ค้นหาทะเบียน / ยี่ห้อ / รุ่น / สี / เจ้าของ / VIN',
             onChanged: (v) => setState(() {
               _query = v;
               _page = 0;
@@ -121,7 +122,7 @@ class _CarsPageState extends State<CarsPage> {
                       onOpenCustomer: car.customerId == null
                           ? null
                           : () => _openCustomer(car.customerId!),
-                      onOpenRepair: (id) => context.push('/repairs/$id'),
+                      onOpenHistory: () => showCarRepairHistory(context, car),
                     );
                   },
                 );
@@ -139,16 +140,13 @@ class _CarTile extends StatelessWidget {
     required this.car,
     required this.onTap,
     required this.onOpenCustomer,
-    required this.onOpenRepair,
+    required this.onOpenHistory,
   });
-
-  /// Max repair jobs listed in the menu.
-  static const _maxRepairs = 5;
 
   final Car car;
   final VoidCallback onTap;
   final VoidCallback? onOpenCustomer;
-  final ValueChanged<int> onOpenRepair;
+  final VoidCallback onOpenHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +165,7 @@ class _CarTile extends StatelessWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(car.brandModel),
+          Text(car.brandModelColor),
           Row(
             children: [
               const Icon(Icons.person, size: 14, color: Colors.grey),
@@ -185,46 +183,49 @@ class _CarTile extends StatelessWidget {
           ),
         ],
       ),
-      trailing: PopupMenuButton<int>(
+      trailing: PopupMenuButton<String>(
         icon: Badge(
-          isLabelVisible: car.repairIds.isNotEmpty,
+          isLabelVisible: car.hasRepairs,
           label: Text('${car.repairIds.length}'),
           child: const Icon(Icons.more_vert),
         ),
         onSelected: (v) {
-          if (v == -1) {
-            onTap();
-          } else if (v == 0) {
-            onOpenCustomer?.call();
-          } else {
-            onOpenRepair(v);
+          switch (v) {
+            case 'edit':
+              onTap();
+            case 'owner':
+              onOpenCustomer?.call();
+            case 'history':
+              onOpenHistory();
           }
         },
         itemBuilder: (_) => [
           const PopupMenuItem(
-            value: -1,
+            value: 'edit',
             child: ListTile(
               leading: Icon(Icons.edit_outlined),
               title: Text('แก้ไขข้อมูลรถ'),
             ),
           ),
           PopupMenuItem(
-            value: 0,
+            value: 'owner',
             enabled: onOpenCustomer != null,
             child: const ListTile(
               leading: Icon(Icons.person_outline),
               title: Text('ข้อมูลเจ้าของรถ'),
             ),
           ),
-          if (car.repairIds.isNotEmpty) const PopupMenuDivider(),
-          for (final id in car.repairIds.take(_maxRepairs))
-            PopupMenuItem(
-              value: id,
-              child: ListTile(
-                leading: const Icon(Icons.car_repair),
-                title: Text('งานซ่อม #$id'),
+          PopupMenuItem(
+            value: 'history',
+            child: ListTile(
+              leading: const Icon(Icons.history),
+              title: Text(
+                car.hasRepairs
+                    ? 'ประวัติการซ่อม (${car.repairIds.length})'
+                    : 'ประวัติการซ่อม',
               ),
             ),
+          ),
         ],
       ),
     );

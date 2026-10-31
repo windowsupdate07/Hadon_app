@@ -11,7 +11,9 @@ import 'widgets/customer_form_fields.dart';
 /// Opens the full-screen customer form.
 ///
 /// Create mode (no [customer]): also asks for the first address and returns
-/// the new CustomerID (or 0 if the server did not echo it).
+/// the new CustomerID (or 0 if the server did not echo it). If the ID number
+/// already exists the user may jump to that customer instead; their id is
+/// returned.
 /// Edit mode: returns the customer's id after a successful update.
 /// Returns null when cancelled.
 Future<int?> showCustomerForm(BuildContext context, {Customer? customer}) {
@@ -54,6 +56,28 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
       return;
     }
     final api = CustomersApi(context.read<ApiClient>());
+
+    // Duplicate ID number check (only when it is new or changed).
+    final idNumber = _customer.idNumberValue;
+    if (idNumber != null && idNumber != widget.customer?.idNumber) {
+      final found = await runWithProgress<Customer?>(
+        context,
+        () => api.findByIdNumber(idNumber),
+      );
+      if (!mounted) {
+        return;
+      }
+      // runWithProgress returns null both for "not found" and for errors;
+      // errors were already shown, so only a hit stops here.
+      if (found != null && found.id != widget.customer?.id) {
+        await _onDuplicateIdNumber(found);
+        return;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
     final id = await runWithProgress<int>(
       context,
       () async {
@@ -68,6 +92,25 @@ class _CustomerFormPageState extends State<CustomerFormPage> {
     );
     if (id != null && mounted) {
       Navigator.of(context).pop(id);
+    }
+  }
+
+  /// The ID number already belongs to [other]. In create mode offer to open
+  /// that customer instead (the page pops with their id).
+  Future<void> _onDuplicateIdNumber(Customer other) async {
+    final message = 'เลขประจำตัว ${other.idNumber ?? ''} '
+        'เป็นของลูกค้า "${other.fullName}" (รหัส #${other.id}) อยู่แล้ว';
+    if (_isEdit) {
+      await AppDialogs.warn(context, message);
+      return;
+    }
+    final open = await AppDialogs.confirm(
+      context,
+      title: 'พบข้อมูลลูกค้าในระบบแล้ว',
+      message: '$message\nต้องการเปิดข้อมูลลูกค้ารายนี้แทนหรือไม่?',
+    );
+    if (open && mounted) {
+      Navigator.of(context).pop(other.id);
     }
   }
 

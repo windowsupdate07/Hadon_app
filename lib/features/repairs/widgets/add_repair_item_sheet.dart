@@ -6,13 +6,18 @@ import '../../../core/utils/format.dart';
 import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../auth/auth_provider.dart';
 import '../../parts/part_model.dart';
 import '../../parts/part_picker.dart';
 import '../repair_models.dart';
 import '../repairs_api.dart';
 
-/// Full-screen form to add a repair item (RepairDetail) with parts, optionally
+/// Full-screen form to add a repair item (RepairDetail) with parts,
 /// prefilled from a preset. Returns true when an item was created.
+///
+/// A preset and at least one part are required, like the web (its repair
+/// detail page renders `item.preset.Preset` and would break on a null
+/// preset).
 Future<bool> showAddRepairItemSheet(
   BuildContext context, {
   required RepairsApi api,
@@ -193,19 +198,28 @@ class _AddRepairItemPageState extends State<_AddRepairItemPage> {
       return;
     }
     if (_lines.isEmpty) {
-      final ok = await AppDialogs.confirm(
-        context,
-        message: 'ยังไม่ได้เลือกอะไหล่ ต้องการบันทึกรายการซ่อมนี้ ใช่หรือไม่?',
-      );
-      if (!ok || !mounted) {
-        return;
-      }
+      await AppDialogs.warn(context, 'กรุณาเลือกอะไหล่อย่างน้อย 1 รายการ');
+      return;
     }
+    if (!mounted) {
+      return;
+    }
+    final ok = await AppDialogs.confirm(
+      context,
+      message:
+          'ท่านต้องการเพิ่มรายการอุปกรณ์ ${_lines.length} รายการ ใช่หรือไม่?\n'
+          '(จำนวนอะไหล่จะถูกตัดออกจากสต๊อก)',
+    );
+    if (!ok || !mounted) {
+      return;
+    }
+    final employeeId = context.read<AuthProvider>().employee?.id;
     final result = await runWithProgress(context, () async {
       await widget.api.createItem(
         repairId: widget.repair.id,
         repairCategoryId: _categoryId!,
-        presetId: _presetId,
+        presetId: _presetId!,
+        employeeId: employeeId,
         parts: [
           for (final l in _lines) NewRepairPart(part: l.part, numOfUse: l.qty),
         ],
@@ -279,7 +293,7 @@ class _AddRepairItemPageState extends State<_AddRepairItemPage> {
             initialValue: presetValue,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: 'พรีเซ็ต (ไม่บังคับ)',
+              labelText: 'พรีเซ็ต *',
               border: const OutlineInputBorder(),
               helperText: _categoryId == null
                   ? 'เลือกหมวดหมู่ก่อน'
@@ -287,11 +301,8 @@ class _AddRepairItemPageState extends State<_AddRepairItemPage> {
                   ? 'ไม่มีพรีเซ็ตสำหรับหมวดหมู่นี้'
                   : null,
             ),
+            validator: (v) => v == null ? 'กรุณาเลือกพรีเซ็ต' : null,
             items: [
-              const DropdownMenuItem<int?>(
-                value: null,
-                child: Text('ไม่ใช้พรีเซ็ต'),
-              ),
               for (final p in presets)
                 DropdownMenuItem<int?>(
                   value: p.id,

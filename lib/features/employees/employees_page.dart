@@ -9,6 +9,7 @@ import '../../core/widgets/state_views.dart';
 import '../../layouts/app_scaffold.dart';
 import '../auth/auth_provider.dart';
 import '../auth/employee.dart';
+import 'employee_avatar.dart';
 import 'employee_form_page.dart';
 import 'employees_api.dart';
 
@@ -33,7 +34,7 @@ StatusInfo _positionInfo(Employee e) {
 }
 
 StatusInfo _statusInfo(Employee e) {
-  final disabled = e.employeeStatusId == EmployeeStatusId.disabled;
+  final disabled = e.isDisabled;
   return StatusInfo(
     e.employeeStatusTitle ?? (disabled ? 'ยกเลิกผู้ใช้งาน' : 'ปกติ'),
     disabled ? Colors.grey : Colors.green,
@@ -65,8 +66,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
     final list = await _api.findAll();
     // Active first, then by name.
     list.sort((a, b) {
-      final sa = a.employeeStatusId == EmployeeStatusId.disabled ? 1 : 0;
-      final sb = b.employeeStatusId == EmployeeStatusId.disabled ? 1 : 0;
+      final sa = a.isDisabled ? 1 : 0;
+      final sb = b.isDisabled ? 1 : 0;
       if (sa != sb) {
         return sa - sb;
       }
@@ -92,7 +93,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
       if (_query.isNotEmpty && !e.matches(_query)) {
         return false;
       }
-      final disabled = e.employeeStatusId == EmployeeStatusId.disabled;
+      final disabled = e.isDisabled;
       switch (_filter) {
         case _StatusFilter.active:
           return !disabled;
@@ -137,24 +138,71 @@ class _EmployeesPageState extends State<EmployeesPage> {
     }
   }
 
+  Future<void> _resetPassword(Employee employee) async {
+    final ok = await AppDialogs.confirm(
+      context,
+      title: 'รีเซ็ตรหัสผ่าน',
+      message:
+          'ท่านต้องการรีเซ็ตรหัสผ่านของ "${employee.fullName}" '
+          'เป็น "$defaultEmployeePassword" ใช่หรือไม่?',
+    );
+    if (!ok || !mounted) {
+      return;
+    }
+    final done = await runWithProgress(context, () async {
+      await _api.resetPassword(employee.id);
+      return true;
+    });
+    if (done == true && mounted) {
+      await AppDialogs.success(
+        context,
+        'รีเซ็ตรหัสผ่านเป็น "$defaultEmployeePassword" แล้ว '
+        'กรุณาแจ้งพนักงานให้เปลี่ยนรหัสผ่านหลังเข้าสู่ระบบ',
+      );
+    }
+  }
+
+  Future<void> _changePhoto(Employee employee) async {
+    final auth = context.read<AuthProvider>();
+    final changed = await changeEmployeePhoto(context, employee);
+    if (!changed || !mounted) {
+      return;
+    }
+    if (employee.id == auth.employee?.id) {
+      // Keep the signed-in user's cached profile in sync.
+      await auth.restore();
+    }
+    await _refresh();
+  }
+
   Future<void> _showDetail(Employee e) async {
     final me = context.read<AuthProvider>().employee;
-    final canManage = me?.canManage ?? false;
     final isMe = me?.id == e.id;
+    final canEdit = me?.canEditEmployee(e) ?? false;
+    final canDelete = me?.canDeleteEmployee(e) ?? false;
+    final canPhoto = me?.canChangePhotoOf(e) ?? false;
     final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                isMe ? '${e.fullName} (คุณ)' : e.fullName,
-                style: Theme.of(context).textTheme.titleLarge,
+              Row(
+                children: [
+                  EmployeeAvatar(employee: e, radius: 32),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      isMe ? '${e.fullName} (คุณ)' : e.fullName,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -171,11 +219,27 @@ class _EmployeesPageState extends State<EmployeesPage> {
               InfoRow('ชื่อผู้ใช้งาน', e.username),
               InfoRow('อีเมล', e.email),
               InfoRow('เบอร์โทรศัพท์', e.tel),
-              if (canManage) ...[
-                const SizedBox(height: 16),
+              if (canPhoto || canEdit) const SizedBox(height: 12),
+              if (canPhoto)
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).pop('photo'),
+                  icon: const Icon(Icons.account_circle_outlined),
+                  label: const Text('เปลี่ยนรูปโปรไฟล์'),
+                ),
+              if (canEdit)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange.shade800,
+                  ),
+                  onPressed: () => Navigator.of(context).pop('reset'),
+                  icon: const Icon(Icons.lock_reset),
+                  label: const Text('รีเซ็ตรหัสผ่าน'),
+                ),
+              if (canEdit) ...[
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    if (!isMe) ...[
+                    if (canDelete) ...[
                       Expanded(
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
@@ -206,20 +270,25 @@ class _EmployeesPageState extends State<EmployeesPage> {
     if (!mounted) {
       return;
     }
-    if (action == 'edit') {
-      await _openForm(e);
-    } else if (action == 'delete') {
-      await _delete(e);
+    switch (action) {
+      case 'edit':
+        await _openForm(e);
+      case 'delete':
+        await _delete(e);
+      case 'reset':
+        await _resetPassword(e);
+      case 'photo':
+        await _changePhoto(e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canManage =
-        context.watch<AuthProvider>().employee?.canManage ?? false;
+    final canCreate =
+        context.watch<AuthProvider>().employee?.canCreateEmployee ?? false;
     return AppScaffold(
       title: 'ข้อมูลพนักงาน',
-      floatingActionButton: canManage
+      floatingActionButton: canCreate
           ? FloatingActionButton(
               onPressed: () => _openForm(),
               tooltip: 'เพิ่มพนักงาน',
@@ -310,7 +379,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
           );
         }
         final e = items[i - 1];
-        final disabled = e.employeeStatusId == EmployeeStatusId.disabled;
+        final disabled = e.isDisabled;
         return Opacity(
           opacity: disabled ? 0.5 : 1,
           child: Card(
@@ -318,10 +387,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             color: disabled ? Colors.grey.shade200 : null,
             child: ListTile(
               onTap: () => _showDetail(e),
-              leading: CircleAvatar(
-                backgroundColor: disabled ? Colors.grey.shade400 : null,
-                child: Text(e.initials),
-              ),
+              leading: EmployeeAvatar(employee: e, dimmed: disabled),
               title: Text(e.id == myId ? '${e.fullName} (คุณ)' : e.fullName),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
