@@ -16,6 +16,8 @@ Future<NewQuotation?> openCreateQuotationForm(
   required QuotationsApi api,
   String title = 'สร้างใบเสนอราคา',
   String? defaultComment,
+  CarOption? initialCar,
+  String? submitLabel,
 }) {
   return Navigator.of(context).push<NewQuotation>(
     MaterialPageRoute(
@@ -24,6 +26,8 @@ Future<NewQuotation?> openCreateQuotationForm(
         api: api,
         title: title,
         defaultComment: defaultComment,
+        initialCar: initialCar,
+        submitLabel: submitLabel,
       ),
     ),
   );
@@ -34,11 +38,15 @@ class _CreateQuotationPage extends StatefulWidget {
     required this.api,
     required this.title,
     this.defaultComment,
+    this.initialCar,
+    this.submitLabel,
   });
 
   final QuotationsApi api;
   final String title;
   final String? defaultComment;
+  final CarOption? initialCar;
+  final String? submitLabel;
 
   @override
   State<_CreateQuotationPage> createState() => _CreateQuotationPageState();
@@ -48,7 +56,7 @@ class _CreateQuotationPageState extends State<_CreateQuotationPage> {
   final _formKey = GlobalKey<FormState>();
   final _vehicleKey = GlobalKey<_VehicleFieldsState>();
   late final _comment = TextEditingController(text: widget.defaultComment ?? '');
-  CarOption? _car;
+  late CarOption? _car = widget.initialCar;
 
   @override
   void dispose() {
@@ -82,7 +90,7 @@ class _CreateQuotationPageState extends State<_CreateQuotationPage> {
     }
     final ok = await AppDialogs.confirm(
       context,
-      message: 'ท่านต้องการสร้างใบเสนอราคา ใช่หรือไม่?',
+      message: 'ท่านต้องการ${widget.submitLabel ?? widget.title} ใช่หรือไม่?',
     );
     if (!ok || !mounted) {
       return;
@@ -153,7 +161,7 @@ class _CreateQuotationPageState extends State<_CreateQuotationPage> {
           child: FilledButton.icon(
             onPressed: _submit,
             icon: const Icon(Icons.save),
-            label: Text(widget.title),
+            label: Text(widget.submitLabel ?? widget.title),
           ),
         ),
       ),

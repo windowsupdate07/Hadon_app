@@ -21,10 +21,11 @@ class MenuSection {
 
 /// Mirrors the web sidebar, limited to modules the ntp-api backend serves.
 const menu = [
-  MenuSection('', [MenuItem('หน้าหลัก', Icons.home_outlined, '/')]),
-  MenuSection('SYSTEM', [
-    MenuItem('ซ่อมรถยนต์', Icons.car_repair, '/repairs'),
+  MenuSection('', [
+    MenuItem('หน้าหลัก', Icons.home_outlined, '/'),
+    MenuItem('รับรถเข้า', Icons.garage_rounded, '/intake'),
   ]),
+  MenuSection('SYSTEM', [MenuItem('ซ่อมรถยนต์', Icons.car_repair, '/repairs')]),
   MenuSection('INVOICES', [
     MenuItem('ใบเสนอราคา', Icons.request_quote_outlined, '/quotations'),
     MenuItem('ใบแจ้งหนี้', Icons.receipt_long_outlined, '/invoices'),
@@ -102,16 +103,31 @@ class AppDrawer extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(28, 12, 16, 4),
               child: Text(
                 section.header,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: Colors.grey, letterSpacing: 1),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.grey,
+                  letterSpacing: 1,
+                ),
               ),
             ),
           for (final item in section.items)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: ListTile(
-                leading: Icon(item.icon),
-                title: Text(item.title),
+                leading: Icon(
+                  item.icon,
+                  color: item.path == '/intake'
+                      ? theme.colorScheme.primary
+                      : null,
+                ),
+                title: Text(
+                  item.title,
+                  style: item.path == '/intake'
+                      ? TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        )
+                      : null,
+                ),
                 selected: item.path == '/'
                     ? location == '/'
                     : location.startsWith(item.path),
@@ -120,7 +136,12 @@ class AppDrawer extends StatelessWidget {
                 ),
                 onTap: () {
                   Navigator.of(context).pop();
-                  context.go(item.path);
+                  // Intake is a task flow (with back), not a menu page.
+                  if (item.path == '/intake') {
+                    context.push(item.path);
+                  } else {
+                    context.go(item.path);
+                  }
                 },
               ),
             ),

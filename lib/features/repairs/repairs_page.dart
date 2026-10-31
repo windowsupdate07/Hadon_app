@@ -72,6 +72,16 @@ class _RepairsPageState extends State<RepairsPage> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'ซ่อมรถยนต์',
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await context.push('/intake');
+          if (mounted) {
+            _refresh();
+          }
+        },
+        icon: const Icon(Icons.garage_rounded),
+        label: const Text('รับรถเข้า'),
+      ),
       actions: [
         IconButton(
           tooltip: 'รีเฟรช',

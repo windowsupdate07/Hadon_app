@@ -9,6 +9,7 @@ import '../features/customers/customer_detail_page.dart';
 import '../features/customers/customers_page.dart';
 import '../features/employees/employees_page.dart';
 import '../features/home/home_page.dart';
+import '../features/intake/intake_page.dart';
 import '../features/invoices/invoice_detail_page.dart';
 import '../features/invoices/invoices_page.dart';
 import '../features/parts/parts_page.dart';
@@ -40,6 +41,7 @@ GoRouter createRouter(AuthProvider auth) {
       GoRoute(path: '/splash', builder: (_, _) => const _SplashPage()),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/', builder: (_, _) => const HomePage()),
+      GoRoute(path: '/intake', builder: (_, _) => const IntakePage()),
       GoRoute(
         path: '/repairs',
         builder: (_, _) => const RepairsPage(),
